@@ -4,7 +4,7 @@
 
 import Foundation
 
-/// Settings for the pool like connection parameters and settings.
+/// Settings for the pool like connection parameters.
 public struct PoolConfiguration {
 
     /// PostgreSQL connection parameters.
