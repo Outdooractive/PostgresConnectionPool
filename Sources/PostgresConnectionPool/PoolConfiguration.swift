@@ -3,6 +3,7 @@
 //
 
 import Foundation
+import PostgresNIO
 
 /// Settings for the pool like connection parameters.
 public struct PoolConfiguration {
@@ -42,8 +43,18 @@ public struct PoolConfiguration {
     /// TImeout for individual database queries, in seconds.
     public let queryTimeout: TimeInterval
 
-    /// The pool size.
+    /// The maximum number of open connections to the database.
     public let poolSize: Int
+
+    /// Called when new connections to the database are openend.
+    ///
+    /// Use this to set extra connection options or override the defaults.
+    public var onOpenConnection: ((PostgresConnection, Logger) async throws -> Void)?
+
+    /// Called before a connection is given to a client.
+    ///
+    /// Default is to do a quick connection check with "SELECT 1" and close the connection on errors.
+    public var onReturnConnection: ((PostgresConnection, Logger) async throws -> Void)?
 
     public init(
         applicationName: String,
@@ -57,6 +68,10 @@ public struct PoolConfiguration {
         self.connectTimeout = connectTimeout.atLeast(1.0)
         self.queryTimeout = queryTimeout.atLeast(1.0)
         self.poolSize = poolSize.atLeast(1)
+
+        self.onReturnConnection = { connection, logger in
+            try await connection.query("SELECT 1", logger: logger)
+        }
     }
 
 }

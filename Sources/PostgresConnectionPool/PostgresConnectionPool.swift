@@ -20,6 +20,9 @@ public actor PostgresConnectionPool {
     private let poolSize: Int
     private let queryTimeout: TimeInterval
 
+    private let onOpenConnection: ((PostgresConnection, Logger) async throws -> Void)?
+    private let onReturnConnection: ((PostgresConnection, Logger) async throws -> Void)?
+
     private var connections: [PoolConnection] = []
     private var available: Deque<PoolConnection> = []
     private var continuations: Deque<PoolContinuation> = []
@@ -40,6 +43,9 @@ public actor PostgresConnectionPool {
         self.poolName = "\(configuration.connection.username)@\(configuration.connection.host):\(configuration.connection.port)/\(configuration.connection.database)"
         self.poolSize = configuration.poolSize
         self.queryTimeout = configuration.queryTimeout
+
+        self.onOpenConnection = configuration.onOpenConnection
+        self.onReturnConnection = configuration.onReturnConnection
 
         var postgresConnection = PostgresConnection.Configuration.Connection(
             host: configuration.connection.host,
@@ -194,8 +200,10 @@ public actor PostgresConnectionPool {
                 do {
                     poolConnection.state = .active(Date())
 
-                    // TODO: Shouldn't be necessary, maybe make it optional
-                    try await connection.query("SELECT 1", logger: logger)
+                    // Connection check, etc.
+                    if let onReturnConnection = onReturnConnection {
+                        try await onReturnConnection(connection, logger)
+                    }
 
                     return poolContinuation.continuation.resume(returning: poolConnection)
                 }
@@ -254,6 +262,10 @@ public actor PostgresConnectionPool {
             do {
                 try await connection.query(PostgresQuery(stringLiteral: "SET application_name='\(connectionName) - CONN:\(poolConnection.id)'"), logger: logger)
                 try await connection.query(PostgresQuery(stringLiteral: "SET statement_timeout=\(Int(queryTimeout * 1000))"), logger: logger)
+
+                if let onOpenConnection = onOpenConnection {
+                    try await onOpenConnection(connection, logger)
+                }
             }
             catch {
                 poolConnection.state = .closed
