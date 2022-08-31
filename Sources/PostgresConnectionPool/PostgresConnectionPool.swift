@@ -69,7 +69,7 @@ public actor PostgresConnectionPool {
     /// Takes one connection from the pool and dishes it out to the caller.
     @discardableResult
     public func connection<T>(
-        callback: (PostgresConnection) async throws -> T)
+        _ callback: (PostgresConnection) async throws -> T)
         async throws
         -> T
     {
