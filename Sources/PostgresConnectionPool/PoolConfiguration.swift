@@ -56,6 +56,9 @@ public struct PoolConfiguration {
     /// Default is to do a quick connection check with "SELECT 1" and close the connection on errors.
     public var onReturnConnection: ((PostgresConnection, Logger) async throws -> Void)?
 
+    /// Called just before a connection is being closed.
+    public var onCloseConnection: ((PostgresConnection, Logger) async throws -> Void)?
+
     public init(
         applicationName: String,
         connection: Connection,

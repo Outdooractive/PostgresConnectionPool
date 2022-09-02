@@ -22,6 +22,7 @@ public actor PostgresConnectionPool {
 
     private let onOpenConnection: ((PostgresConnection, Logger) async throws -> Void)?
     private let onReturnConnection: ((PostgresConnection, Logger) async throws -> Void)?
+    private let onCloseConnection: ((PostgresConnection, Logger) async throws -> Void)?
 
     private var connections: [PoolConnection] = []
     private var available: Deque<PoolConnection> = []
@@ -46,6 +47,7 @@ public actor PostgresConnectionPool {
 
         self.onOpenConnection = configuration.onOpenConnection
         self.onReturnConnection = configuration.onReturnConnection
+        self.onCloseConnection = configuration.onCloseConnection
 
         var postgresConnection = PostgresConnection.Configuration.Connection(
             host: configuration.connection.host,
@@ -140,7 +142,18 @@ public actor PostgresConnectionPool {
 
         connections.forEach({ $0.state = .closed })
         for poolConnection in connections {
-            try? await poolConnection.connection?.close()
+            if let connection = poolConnection.connection {
+                if let onCloseConnection = onCloseConnection {
+                    do {
+                        try await onCloseConnection(connection, logger)
+                    }
+                    catch {
+                        logger.warning("[\(poolName)] onCloseConnection error: \(error)")
+                    }
+                }
+
+                try? await connection.close()
+            }
         }
         connections.removeAll()
     }
@@ -209,8 +222,21 @@ public actor PostgresConnectionPool {
                 }
                 catch {
                     logger.warning("[\(poolName)] Health check for connection \(poolConnection.id) failed")
+
                     poolConnection.state = .closed
-                    try? await poolConnection.connection?.close()
+
+                    if let connection = poolConnection.connection {
+                        if let onCloseConnection = onCloseConnection {
+                            do {
+                                try await onCloseConnection(connection, logger)
+                            }
+                            catch {
+                                logger.warning("[\(poolName)] onCloseConnection error: \(error)")
+                            }
+                        }
+
+                        try? await connection.close()
+                    }
                 }
             }
             else {
