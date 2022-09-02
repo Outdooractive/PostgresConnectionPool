@@ -154,7 +154,12 @@ public actor PostgresConnectionPool {
                     }
                 }
 
-                try? await connection.close()
+                do {
+                    try await connection.close()
+                }
+                catch {
+                    logger.warning("[\(poolName)] connection.close() error: \(error)")
+                }
             }
         }
         connections.removeAll()
@@ -212,9 +217,9 @@ public actor PostgresConnectionPool {
                     return
                 }
 
-                do {
-                    poolConnection.state = .active(Date())
+                poolConnection.state = .active(Date())
 
+                do {
                     // Connection check, etc.
                     if let onReturnConnection = onReturnConnection {
                         try await onReturnConnection(connection, logger)
@@ -237,7 +242,12 @@ public actor PostgresConnectionPool {
                             }
                         }
 
-                        try? await connection.close()
+                        do {
+                            try await connection.close()
+                        }
+                        catch {
+                            logger.warning("[\(poolName)] connection.close() error: \(error)")
+                        }
                     }
                 }
             }
