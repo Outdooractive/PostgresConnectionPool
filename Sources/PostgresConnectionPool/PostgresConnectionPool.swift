@@ -28,10 +28,13 @@ public actor PostgresConnectionPool {
     private var available: Deque<PoolConnection> = []
     private var continuations: Deque<PoolContinuation> = []
 
-    private var didStartWatcherTask: Bool = false
+    private var didStartWatcherTask = false
+    private var didShutdown = false
 
     // MARK: -
 
+    /// Initializes and configures a new pool. You should call ``shutdown()``
+    /// when you are done with the pool.
     public init(configuration: PoolConfiguration, logger: Logger? = nil) {
         self.logger = logger ?? {
             var logger = Logger(label: configuration.applicationName)
@@ -64,8 +67,7 @@ public actor PostgresConnectionPool {
     }
 
     deinit {
-        assert(connections.isEmpty, "Must call destroy() before releasing a PostgresConnectionPool")
-        try? eventLoopGroup.syncShutdownGracefully()
+        assert(didShutdown, "Must call destroy() before releasing a PostgresConnectionPool")
     }
 
     /// Takes one connection from the pool and dishes it out to the caller.
@@ -103,6 +105,8 @@ public actor PostgresConnectionPool {
     }
 
     func getConnection() async throws -> PoolConnection {
+        guard !didShutdown else { throw PoolError.poolDestroyed }
+
         return try await withCheckedThrowingContinuation({ (continuation: PostgresCheckedContinuation) in
             self.continuations.append(PoolContinuation(continuation: continuation))
 
@@ -128,20 +132,21 @@ public actor PostgresConnectionPool {
         }
     }
 
-    /// Releases all resources in the pool.
+    /// Releases all resources in the pool and shuts down the event loop.
+    /// All further uses of the pool will throw an error.
     ///
-    /// It's actually no problem to continue to use the PostgresConnectionPool after calling destroy(),
-    /// it will just close all connections and abort any waiting continuations.
-    public func destroy() async {
+    /// Must be done here since Swift doesn't yet allow async deinit.
+    public func shutdown() async {
         logger.debug("[\(poolName)] destroy()")
 
+        didShutdown = true
+
+        // Cancel all waiting continuations
         for poolContinuation in continuations {
             poolContinuation.continuation.resume(throwing: PoolError.cancelled)
         }
-        continuations.removeAll()
 
-        available.removeAll()
-
+        // Close all open connections
         connections.forEach({ $0.state = .closed })
         for poolConnection in connections {
             if let connection = poolConnection.connection {
@@ -162,7 +167,9 @@ public actor PostgresConnectionPool {
                 }
             }
         }
-        connections.removeAll()
+
+        // Shut down the event loop.
+        try? eventLoopGroup.syncShutdownGracefully()
     }
 
     // MARK: - Private

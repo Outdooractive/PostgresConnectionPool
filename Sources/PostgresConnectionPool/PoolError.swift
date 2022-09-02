@@ -11,5 +11,7 @@ public enum PoolError: Error {
     case cancelled
     /// The connection to the database was unexpectedly closed.
     case connectionFailed
+    /// The pool was already shut down.
+    case poolDestroyed
 
 }
