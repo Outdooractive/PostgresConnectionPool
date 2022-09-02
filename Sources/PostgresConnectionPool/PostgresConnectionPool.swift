@@ -96,7 +96,7 @@ public actor PostgresConnectionPool {
                 await releaseConnection(poolConnection)
             }
 
-            logger.debug("Failed to get a pool connection: \(error)")
+            logger.debug("[\(poolName)] Failed to get a connection: \(error)")
 
             throw error
         }
@@ -133,6 +133,8 @@ public actor PostgresConnectionPool {
     /// It's actually no problem to continue to use the PostgresConnectionPool after calling destroy(),
     /// it will just close all connections and abort any waiting continuations.
     public func destroy() async {
+        logger.debug("[\(poolName)] destroy()")
+
         for poolContinuation in continuations {
             poolContinuation.continuation.resume(throwing: PoolError.cancelled)
         }
@@ -161,7 +163,7 @@ public actor PostgresConnectionPool {
     // MARK: - Private
 
     private func checkConnections() async {
-        logger.debug("Checking open connections")
+        logger.debug("[\(poolName)] Checking open connections")
 
         defer {
             Task.after(
