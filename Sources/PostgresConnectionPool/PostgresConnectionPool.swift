@@ -168,8 +168,6 @@ public actor PostgresConnectionPool {
     // MARK: - Private
 
     private func checkConnections() async {
-        logger.debug("[\(poolName)] Checking open connections")
-
         defer {
             Task.after(
                 seconds: 5.0,
