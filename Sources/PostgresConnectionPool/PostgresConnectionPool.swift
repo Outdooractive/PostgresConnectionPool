@@ -40,7 +40,7 @@ public actor PostgresConnectionPool {
         }()
         self.eventLoopGroup = MultiThreadedEventLoopGroup(numberOfThreads: configuration.poolSize * 2)
 
-        self.connectionName = String(configuration.applicationName.replacingPattern("[^\\w\\d\\s]", with: "").prefix(PostgresConnectionPool.postgresMaxNameLength))
+        self.connectionName = String(configuration.applicationName.replacingPattern("[^-\\w\\d\\s()]", with: "").prefix(PostgresConnectionPool.postgresMaxNameLength))
         self.poolName = "\(configuration.connection.username)@\(configuration.connection.host):\(configuration.connection.port)/\(configuration.connection.database)"
         self.poolSize = configuration.poolSize
         self.queryTimeout = configuration.queryTimeout
