@@ -193,7 +193,7 @@ public actor PostgresConnectionPool {
         // TODO: Kill self if too many stuck connections
 
         let usageCounter = connections.reduce(0) { $0 + $1.usageCounter }
-        logger.info("[\(poolName)] \(connections.count) connections (\(available.count) available, \(usageCounter) queries), \(continuations.count) continuations left")
+        logger.debug("[\(poolName)] \(connections.count) connections (\(available.count) available, \(usageCounter) queries), \(continuations.count) continuations left")
 
         // Check for waiting continuations and open a new connection if possible
         if connections.count < poolSize,

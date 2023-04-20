@@ -9,7 +9,7 @@ A simple connection pool on top of PostgresNIO.
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/Outdooractive/PostgresConnectionPool.git", from: "0.3.1"),
+    .package(url: "https://github.com/Outdooractive/PostgresConnectionPool.git", from: "0.3.2"),
 ],
 targets: [
     .target(name: "MyTarget", dependencies: [
