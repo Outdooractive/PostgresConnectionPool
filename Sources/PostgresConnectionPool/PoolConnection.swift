@@ -16,10 +16,15 @@ final class PoolConnection: Identifiable, Equatable {
 
     private static var connectionId: Int = 0
 
-    let id: Int
+    private(set) var usageCounter = 0
 
+    let id: Int
     var connection: PostgresConnection?
-    var state: State = .connecting
+    var state: State = .connecting {
+        didSet {
+            if case .active = state { usageCounter += 1 }
+        }
+    }
 
     init() {
         self.id = PoolConnection.connectionId

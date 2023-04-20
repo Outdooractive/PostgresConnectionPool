@@ -52,18 +52,15 @@ public actor PostgresConnectionPool {
         self.onReturnConnection = configuration.onReturnConnection
         self.onCloseConnection = configuration.onCloseConnection
 
-        var postgresConnection = PostgresConnection.Configuration.Connection(
+        var postgresConfiguration = PostgresConnection.Configuration(
             host: configuration.connection.host,
-            port: configuration.connection.port)
-        postgresConnection.connectTimeout = .seconds(Int64(configuration.connectTimeout))
-
-        self.postgresConfiguration = PostgresConnection.Configuration(
-            connection: postgresConnection,
-            authentication: .init(
-                username: configuration.connection.username,
-                database: configuration.connection.database,
-                password: configuration.connection.password),
+            port: configuration.connection.port,
+            username: configuration.connection.username,
+            password: configuration.connection.password,
+            database: configuration.connection.database,
             tls: .disable)
+        postgresConfiguration.options.connectTimeout = .seconds(Int64(configuration.connectTimeout))
+        self.postgresConfiguration = postgresConfiguration
     }
 
     deinit {
@@ -124,8 +121,12 @@ public actor PostgresConnectionPool {
     }
 
     func releaseConnection(_ connection: PoolConnection) async {
-        connection.state = .available
-        available.append(connection)
+        // It can happen that the connection is returned before it's being used
+        // (e.g. on cancellation)
+        if connection.state != .available {
+            connection.state = .available
+            available.append(connection)
+        }
 
         Task.detached { [weak self] in
             await self?.handleNextContinuation()
@@ -169,7 +170,7 @@ public actor PostgresConnectionPool {
         }
 
         // Shut down the event loop.
-        try? eventLoopGroup.syncShutdownGracefully()
+        try? await eventLoopGroup.shutdownGracefully()
     }
 
     // MARK: - Private
@@ -191,7 +192,8 @@ public actor PostgresConnectionPool {
 
         // TODO: Kill self if too many stuck connections
 
-        logger.debug("[\(poolName)] Check connections: \(continuations.count) continuations left, \(connections.count) connections, \(available.count) available")
+        let usageCounter = connections.reduce(0) { $0 + $1.usageCounter }
+        logger.info("[\(poolName)] \(connections.count) connections (\(available.count) available, \(usageCounter) queries), \(continuations.count) continuations left")
 
         // Check for waiting continuations and open a new connection if possible
         if connections.count < poolSize,
