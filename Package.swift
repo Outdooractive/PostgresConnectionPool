@@ -1,4 +1,4 @@
-// swift-tools-version:5.6
+// swift-tools-version:5.7
 
 import PackageDescription
 
@@ -12,13 +12,15 @@ let package = Package(
     ],
     dependencies: [
         .package(url: "https://github.com/apple/swift-collections", from: "1.0.2"),
-        .package(url: "https://github.com/vapor/postgres-kit", from: "2.8.0"),
+        .package(url: "https://github.com/vapor/postgres-nio.git", from: "1.14.0"),
+        .package(url: "https://github.com/vapor/postgres-kit", from: "2.10.0"),
     ],
     targets: [
         .target(
             name: "PostgresConnectionPool",
             dependencies: [
                 .product(name: "Collections", package: "swift-collections"),
+                .product(name: "PostgresNIO", package: "postgres-nio"),
                 .product(name: "PostgresKit", package: "postgres-kit"),
             ]),
     ])
