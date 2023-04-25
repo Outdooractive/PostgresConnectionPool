@@ -7,23 +7,27 @@ import PostgresNIO
 
 final class PoolConnection: Identifiable, Equatable {
 
-    enum State: Equatable {
-        case active(Date)
-        case available
-        case closed
-        case connecting
-    }
-
     private static var connectionId: Int = 0
 
     private(set) var usageCounter = 0
 
     let id: Int
     var connection: PostgresConnection?
-    var state: State = .connecting {
+    var state: PoolConnectionState = .connecting {
         didSet {
             if case .active = state { usageCounter += 1 }
         }
+    }
+
+    private var queryStartTimestamp: Date?
+    var query: String? {
+        didSet {
+            queryStartTimestamp = (query == nil ? nil : Date())
+        }
+    }
+    var queryRuntime: TimeInterval? {
+        guard let queryStartTimestamp else { return nil }
+        return Date().timeIntervalSince(queryStartTimestamp)
     }
 
     init() {

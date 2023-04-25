@@ -75,7 +75,7 @@ public actor PostgresConnectionPool {
     /// Takes one connection from the pool and dishes it out to the caller.
     @discardableResult
     public func connection<T>(
-        _ callback: (PostgresConnection) async throws -> T)
+        _ callback: (PostgresConnectionWrapper) async throws -> T)
         async throws
         -> T
     {
@@ -89,7 +89,7 @@ public actor PostgresConnectionPool {
                 throw PoolError.cancelled
             }
 
-            let result = try await callback(poolConnection!.connection!)
+            let result = try await PostgresConnectionWrapper.distribute(poolConnection: poolConnection, callback: callback)
 
             await releaseConnection(poolConnection!)
 
@@ -167,6 +167,26 @@ public actor PostgresConnectionPool {
 
         // Shut down the event loop.
         try? await eventLoopGroup.shutdownGracefully()
+    }
+
+    /// Information about the pool and its open connections.
+    func poolInfo() async -> PoolInfo {
+        let connections = connections.compactMap { connection -> PoolInfo.ConnectionInfo? in
+            return PoolInfo.ConnectionInfo(
+                id: connection.id,
+                name: nameForConnection(id: connection.id),
+                usageCounter: connection.usageCounter,
+                query: connection.query,
+                queryRuntime: connection.queryRuntime,
+                state: connection.state)
+        }
+
+        return PoolInfo(
+            name: poolName,
+            openConnections: connections.count,
+            activeConnections: connections.count - available.count,
+            availableConnections: available.count,
+            connections: connections)
     }
 
     // MARK: - Private
