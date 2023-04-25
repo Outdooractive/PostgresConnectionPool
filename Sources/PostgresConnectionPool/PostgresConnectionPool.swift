@@ -10,6 +10,8 @@ import PostgresNIO
 public actor PostgresConnectionPool {
 
     private static let postgresMaxNameLength: Int = 32 // PostgreSQL allows 64 but we add some extra info
+    private static let healthCheckInterval: TimeInterval = 5.0
+    private static let idleConnectionsCheckInterval: TimeInterval = 60.0
 
     private let logger: Logger
     private let eventLoopGroup: EventLoopGroup
@@ -18,7 +20,8 @@ public actor PostgresConnectionPool {
     private let connectionName: String
     private let poolName: String
     private let poolSize: Int
-    private let queryTimeout: TimeInterval
+    private let maxIdleConnections: Int?
+    private let queryTimeout: TimeInterval?
 
     private let onOpenConnection: ((PostgresConnection, Logger) async throws -> Void)?
     private let onReturnConnection: ((PostgresConnection, Logger) async throws -> Void)?
@@ -27,6 +30,7 @@ public actor PostgresConnectionPool {
     private var connections: [PoolConnection] = []
     private var available: Deque<PoolConnection> = []
     private var continuations: Deque<PoolContinuation> = []
+    private var inUseConnectionCounts: Deque<Int> = []
 
     private var didStartWatcherTask = false
     private var didShutdown = false
@@ -46,6 +50,7 @@ public actor PostgresConnectionPool {
         self.connectionName = String(configuration.applicationName.replacingPattern("[^-\\w\\d\\s()]", with: "").prefix(PostgresConnectionPool.postgresMaxNameLength))
         self.poolName = "\(configuration.connection.username)@\(configuration.connection.host):\(configuration.connection.port)/\(configuration.connection.database)"
         self.poolSize = configuration.poolSize
+        self.maxIdleConnections = configuration.maxIdleConnections
         self.queryTimeout = configuration.queryTimeout
 
         self.onOpenConnection = configuration.onOpenConnection
@@ -63,9 +68,9 @@ public actor PostgresConnectionPool {
         self.postgresConfiguration = postgresConfiguration
     }
 
-    deinit {
-        assert(didShutdown, "Must call destroy() before releasing a PostgresConnectionPool")
-    }
+//    deinit {
+//        assert(didShutdown, "Must call shutdown() before releasing a PostgresConnectionPool")
+//    }
 
     /// Takes one connection from the pool and dishes it out to the caller.
     @discardableResult
@@ -127,6 +132,9 @@ public actor PostgresConnectionPool {
             connection.state = .available
             available.append(connection)
         }
+        else {
+            assert(available.contains(connection))
+        }
 
         Task.detached { [weak self] in
             await self?.handleNextContinuation()
@@ -138,7 +146,7 @@ public actor PostgresConnectionPool {
     ///
     /// Must be done here since Swift doesn't yet allow async deinit.
     public func shutdown() async {
-        logger.debug("[\(poolName)] destroy()")
+        logger.debug("[\(poolName)] shutdown()")
 
         didShutdown = true
 
@@ -146,28 +154,16 @@ public actor PostgresConnectionPool {
         for poolContinuation in continuations {
             poolContinuation.continuation.resume(throwing: PoolError.cancelled)
         }
+        continuations.removeAll()
+
+        available.removeAll()
 
         // Close all open connections
         connections.forEach({ $0.state = .closed })
         for poolConnection in connections {
-            if let connection = poolConnection.connection {
-                if let onCloseConnection = onCloseConnection {
-                    do {
-                        try await onCloseConnection(connection, logger)
-                    }
-                    catch {
-                        logger.warning("[\(poolName)] onCloseConnection error: \(error)")
-                    }
-                }
-
-                do {
-                    try await connection.close()
-                }
-                catch {
-                    logger.warning("[\(poolName)] connection.close() error: \(error)")
-                }
-            }
+            await closeConnection(poolConnection)
         }
+        connections.removeAll()
 
         // Shut down the event loop.
         try? await eventLoopGroup.shutdownGracefully()
@@ -175,10 +171,32 @@ public actor PostgresConnectionPool {
 
     // MARK: - Private
 
+    private func closeConnection(_ poolConnection: PoolConnection) async {
+        poolConnection.state = .closed
+
+        guard let connection = poolConnection.connection else { return }
+
+        if let onCloseConnection = onCloseConnection {
+            do {
+                try await onCloseConnection(connection, logger)
+            }
+            catch {
+                logger.warning("[\(poolName)] onCloseConnection error: \(error)")
+            }
+        }
+
+        do {
+            try await connection.close()
+        }
+        catch {
+            logger.warning("[\(poolName)] connection.close() error: \(error)")
+        }
+    }
+
     private func checkConnections() async {
         defer {
             Task.after(
-                seconds: 5.0,
+                seconds: PostgresConnectionPool.healthCheckInterval,
                 priority: .low,
                 operation: { [weak self] in
                     await self?.checkConnections()
@@ -192,6 +210,8 @@ public actor PostgresConnectionPool {
 
         // TODO: Kill self if too many stuck connections
 
+        await closeIdleConnections()
+
         let usageCounter = connections.reduce(0) { $0 + $1.usageCounter }
         logger.debug("[\(poolName)] \(connections.count) connections (\(available.count) available, \(usageCounter) queries), \(continuations.count) continuations left")
 
@@ -202,6 +222,35 @@ public actor PostgresConnectionPool {
             Task.detached { [weak self] in
                 await self?.openConnection()
             }
+        }
+    }
+
+    // TODO: This doesn't work well with short bursts of activity that fall between the 5 seconds check interval
+    private func closeIdleConnections() async {
+        guard let maxIdleConnections else { return }
+
+        // 60 seconds
+        let minArrayLength = Int(PostgresConnectionPool.idleConnectionsCheckInterval / PostgresConnectionPool.healthCheckInterval)
+        assert(minArrayLength >= 1, "idleConnectionsCheckInterval must be higher than healthCheckInterval")
+        if inUseConnectionCounts.count > minArrayLength {
+            inUseConnectionCounts.removeFirst()
+        }
+        inUseConnectionCounts.append(connections.count - available.count)
+
+        guard continuations.isEmpty,
+              inUseConnectionCounts.count >= minArrayLength,
+              let maxInUse = inUseConnectionCounts.max()
+        else { return }
+
+        let toClose = (available.count - maxIdleConnections) - maxInUse
+        guard toClose > 0 else { return }
+
+        logger.debug("[\(poolName)] Closing \(toClose) idle connections")
+
+        for _ in 1...toClose {
+            guard let poolConnection = available.popFirst() else { break }
+
+            await closeConnection(poolConnection)
         }
     }
 
@@ -237,31 +286,17 @@ public actor PostgresConnectionPool {
                 catch {
                     logger.warning("[\(poolName)] Health check for connection \(poolConnection.id) failed")
 
-                    poolConnection.state = .closed
-
-                    if let connection = poolConnection.connection {
-                        if let onCloseConnection = onCloseConnection {
-                            do {
-                                try await onCloseConnection(connection, logger)
-                            }
-                            catch {
-                                logger.warning("[\(poolName)] onCloseConnection error: \(error)")
-                            }
-                        }
-
-                        do {
-                            try await connection.close()
-                        }
-                        catch {
-                            logger.warning("[\(poolName)] connection.close() error: \(error)")
-                        }
-                    }
+                    await closeConnection(poolConnection)
                 }
             }
             else {
-                poolConnection.state = .closed
+                await closeConnection(poolConnection)
             }
         }
+    }
+
+    private func nameForConnection(id: Int) -> String {
+        "\(connectionName) - CONN:\(id)"
     }
 
     private func openConnection() async {
@@ -269,7 +304,7 @@ public actor PostgresConnectionPool {
             didStartWatcherTask = true
 
             Task.after(
-                seconds: 5.0,
+                seconds: PostgresConnectionPool.healthCheckInterval,
                 priority: .low,
                 operation: { [weak self] in
                     await self?.checkConnections()
@@ -305,8 +340,11 @@ public actor PostgresConnectionPool {
             logger.debug("[\(poolName)] Connection \(poolConnection.id) established in \(connectionRuntime.rounded(toPlaces: 2))s")
 
             do {
-                try await connection.query(PostgresQuery(stringLiteral: "SET application_name='\(connectionName) - CONN:\(poolConnection.id)'"), logger: logger)
-                try await connection.query(PostgresQuery(stringLiteral: "SET statement_timeout=\(Int(queryTimeout * 1000))"), logger: logger)
+                try await connection.query(PostgresQuery(stringLiteral: "SET application_name='\(nameForConnection(id: poolConnection.id))'"), logger: logger)
+
+                if let queryTimeout {
+                    try await connection.query(PostgresQuery(stringLiteral: "SET statement_timeout=\(Int(queryTimeout * 1000))"), logger: logger)
+                }
 
                 if let onOpenConnection = onOpenConnection {
                     try await onOpenConnection(connection, logger)

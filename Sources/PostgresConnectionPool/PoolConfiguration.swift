@@ -37,14 +37,18 @@ public struct PoolConfiguration {
     /// Connection parameters to the database.
     public let connection: Connection
 
-    /// Timeout for opening new connections to the PostgreSQL database, in seconds.
+    /// Timeout for opening new connections to the PostgreSQL database, in seconds (default: 5 seconds).
     public let connectTimeout: TimeInterval
 
-    /// TImeout for individual database queries, in seconds.
-    public let queryTimeout: TimeInterval
+    /// TImeout for individual database queries, in seconds (default: 10 seconds).
+    /// Can be disabled by setting to `nil`.
+    public let queryTimeout: TimeInterval?
 
-    /// The maximum number of open connections to the database.
+    /// The maximum number of open connections to the database (default: 10).
     public let poolSize: Int
+
+    /// The maximum number of idle connections (over a 60 seconds period).
+    public let maxIdleConnections: Int?
 
     /// Called when new connections to the database are openend.
     ///
@@ -63,14 +67,16 @@ public struct PoolConfiguration {
         applicationName: String,
         connection: Connection,
         connectTimeout: TimeInterval = 5.0,
-        queryTimeout: TimeInterval = 10.0,
-        poolSize: Int = 10)
+        queryTimeout: TimeInterval? = 10.0,
+        poolSize: Int = 10,
+        maxIdleConnections: Int? = nil)
     {
         self.applicationName = applicationName
         self.connection = connection
         self.connectTimeout = connectTimeout.atLeast(1.0)
-        self.queryTimeout = queryTimeout.atLeast(1.0)
+        self.queryTimeout = queryTimeout?.atLeast(1.0)
         self.poolSize = poolSize.atLeast(1)
+        self.maxIdleConnections = maxIdleConnections?.atLeast(0)
 
         self.onReturnConnection = { connection, logger in
             try await connection.query("SELECT 1", logger: logger)
