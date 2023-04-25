@@ -9,7 +9,7 @@ A simple connection pool on top of PostgresNIO.
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/Outdooractive/PostgresConnectionPool.git", from: "0.3.2"),
+    .package(url: "https://github.com/Outdooractive/PostgresConnectionPool.git", from: "0.4.0"),
 ],
 targets: [
     .target(name: "MyTarget", dependencies: [
@@ -38,7 +38,8 @@ let configuration = PoolConfiguration(
     connection: connection,
     connectTimeout: 10.0,
     queryTimeout: 60.0,
-    poolSize: 5)
+    poolSize: 5,
+    maxIdleConnections: 1)
 let pool = PostgresConnectionPool(configuration: configuration, logger: logger)
 
 // Fetch a connection from the pool and do something with it...
