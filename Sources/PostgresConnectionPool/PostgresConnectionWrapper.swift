@@ -3,6 +3,7 @@
 //
 
 import Foundation
+import PostgresKit
 import PostgresNIO
 
 public final class PostgresConnectionWrapper {
@@ -63,6 +64,14 @@ public final class PostgresConnectionWrapper {
     {
         poolConnection.query = query.sql
         return try await postgresConnection.query(query, logger: logger, file: file, line: line)
+    }
+
+    public func sql(
+        encoder: PostgresDataEncoder = PostgresDataEncoder(),
+        decoder: PostgresDataDecoder = PostgresDataDecoder())
+        -> SQLDatabase
+    {
+        postgresConnection.sql(encoder: encoder, decoder: decoder)
     }
 
     /// Add a handler for NotificationResponse messages on a certain channel. This is used in conjunction with PostgreSQL's `LISTEN`/`NOTIFY` support: to listen on a channel, you add a listener using this method to handle the NotificationResponse messages, then issue a `LISTEN` query to instruct PostgreSQL to begin sending NotificationResponse messages.

@@ -13,7 +13,7 @@ This package requires Swift 5.7 or higher (at least Xcode 13), and compiles on m
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/Outdooractive/PostgresConnectionPool.git", from: "0.5.0"),
+    .package(url: "https://github.com/Outdooractive/PostgresConnectionPool.git", from: "0.5.1"),
 ],
 targets: [
     .target(name: "MyTarget", dependencies: [
