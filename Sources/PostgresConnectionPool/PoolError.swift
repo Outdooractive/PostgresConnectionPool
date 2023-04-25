@@ -13,5 +13,7 @@ public enum PoolError: Error {
     case connectionFailed
     /// The pool was already shut down.
     case poolDestroyed
+    /// Something unexpected happened.
+    case unknown
 
 }
