@@ -20,6 +20,8 @@ targets: [
 
 ## Usage
 
+Please see also the [API documentation](https://swiftpackageindex.com/Outdooractive/PostgresConnectionPool/main/documentation/postgresconnectionpool).
+
 ``` swift
 import PostgresConnectionPool
 import PostgresKit
