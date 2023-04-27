@@ -21,10 +21,28 @@ public final class PostgresConnectionWrapper {
         else { throw PoolError.unknown }
 
         connectionWrapper.poolConnection.query = nil
-        let result = try await callback(connectionWrapper)
-        connectionWrapper.poolConnection.query = nil
+        defer {
+            connectionWrapper.poolConnection.query = nil
+        }
 
-        return result
+        do {
+            return try await callback(connectionWrapper)
+        }
+        catch let error as PSQLError {
+            guard let serverInfo = error.serverInfo,
+                  let code = serverInfo[.sqlState]
+            else { throw error }
+
+            switch PostgresError.Code(raw: code) {
+            case .queryCanceled:
+                throw PoolError.queryCancelled
+            default:
+                throw PoolError.postgresError(error)
+            }
+        }
+        catch {
+            throw error
+        }
     }
 
     init?(_ poolConnection: PoolConnection) {

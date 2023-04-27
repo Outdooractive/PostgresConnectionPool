@@ -3,6 +3,7 @@
 //
 
 import Foundation
+import PostgresNIO
 
 /// Possible errors from the connection pool.
 public enum PoolError: Error {
@@ -13,6 +14,10 @@ public enum PoolError: Error {
     case connectionFailed
     /// The pool was already shut down.
     case poolDestroyed
+    /// Some PostgreSQL error
+    case postgresError(PSQLError)
+    /// The query was cancelled by the server.
+    case queryCancelled
     /// Something unexpected happened.
     case unknown
 
