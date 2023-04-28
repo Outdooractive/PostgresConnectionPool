@@ -35,7 +35,7 @@ public final class PostgresConnectionWrapper {
 
             switch PostgresError.Code(raw: code) {
             case .queryCanceled:
-                throw PoolError.queryCancelled
+                throw PoolError.queryCancelled(query: connectionWrapper.poolConnection.query ?? "<unknown>", runtime: connectionWrapper.poolConnection.queryRuntime ?? 0.0)
             default:
                 throw PoolError.postgresError(error)
             }

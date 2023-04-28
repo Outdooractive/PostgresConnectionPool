@@ -17,7 +17,7 @@ public enum PoolError: Error {
     /// Some PostgreSQL error
     case postgresError(PSQLError)
     /// The query was cancelled by the server.
-    case queryCancelled
+    case queryCancelled(query: String, runtime: Double)
     /// Something unexpected happened.
     case unknown
 

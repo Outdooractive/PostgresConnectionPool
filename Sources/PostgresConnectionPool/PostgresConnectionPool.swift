@@ -100,7 +100,7 @@ public actor PostgresConnectionPool {
                 await releaseConnection(poolConnection)
             }
 
-            logger.debug("[\(poolName)] Failed to get a connection: \(error)")
+            logger.debug("[\(poolName)] Connection or query error: \(error)")
 
             throw error
         }
@@ -112,28 +112,31 @@ public actor PostgresConnectionPool {
         return try await withCheckedThrowingContinuation({ (continuation: PostgresCheckedContinuation) in
             self.continuations.append(PoolContinuation(continuation: continuation))
 
-            if connections.count < poolSize {
-                Task.detached { [weak self] in
-                    await self?.openConnection()
-                }
-            }
-            else if available.count > 0 {
-                Task.detached { [weak self] in
-                    await self?.handleNextContinuation()
-                }
+            Task.detached { [weak self] in
+                await self?.handleNextContinuation()
             }
         })
     }
 
     func releaseConnection(_ connection: PoolConnection) async {
-        // It can happen that the connection is returned before it's being used
-        // (e.g. on cancellation)
-        if connection.state != .available {
+        if connection.state == .closed {
+            if let postgresConnection = connection.connection,
+               !postgresConnection.isClosed
+            {
+                try? await postgresConnection.close()
+            }
+        }
+        else if connection.state == .connecting {
+            assertionFailure("We shouldn't have connections in this state here")
+        }
+        else if case .active = connection.state {
+            // It can happen that the connection is returned before it's being used
+            // (e.g. on cancellation)
             connection.state = .available
             available.append(connection)
         }
         else {
-            assert(available.contains(connection))
+            assert(available.contains(connection), "Connections in state 'available' should be available")
         }
 
         Task.detached { [weak self] in
@@ -283,35 +286,66 @@ public actor PostgresConnectionPool {
         logger.debug("[\(poolName)] Next continuation: \(continuations.count) left")
 
         // Next connection from `available`
-        // Make sure that there is an open connection
-        if let poolConnection = available.popFirst(),
-           poolConnection.state == .available
-        {
-            if let connection = poolConnection.connection {
-                guard let poolContinuation = continuations.popFirst() else {
-                    available.append(poolConnection)
-                    return
-                }
+        // Make sure that the connection is usable
+        // TODO: Needs some code cleanup
+        var poolConnection: PoolConnection?
 
-                poolConnection.state = .active(Date())
+        while let next = available.popFirst() {
+            guard next.state == .available else {
+                // ? -> Force close
+                assertionFailure("Connections in available should be available")
+                next.state = .closed
+                try? await next.connection?.close()
+                continue
+            }
 
-                do {
-                    // Connection check, etc.
-                    if let onReturnConnection = onReturnConnection {
-                        try await onReturnConnection(connection, logger)
-                    }
+            poolConnection = next
+            break
+        }
 
-                    return poolContinuation.continuation.resume(returning: poolConnection)
-                }
-                catch {
-                    logger.warning("[\(poolName)] Health check for connection \(poolConnection.id) failed")
-
-                    await closeConnection(poolConnection)
+        // No available connection, try to open a new one
+        guard let poolConnection else {
+            if connections.count < poolSize {
+                Task.detached { [weak self] in
+                    await self?.openConnection()
                 }
             }
-            else {
-                await closeConnection(poolConnection)
+            return
+        }
+
+        // Check that the Postgres connection is open, or try to open a new one
+        guard let connection = poolConnection.connection else {
+            poolConnection.state = .closed
+
+            if connections.count < poolSize {
+                Task.detached { [weak self] in
+                    await self?.openConnection()
+                }
             }
+            return
+        }
+
+        // Get the next continuation from the list...
+        guard let poolContinuation = continuations.popFirst() else {
+            available.append(poolConnection)
+            return
+        }
+
+        // .. and work on it
+        poolConnection.state = .active(Date())
+
+        do {
+            // Connection check, etc.
+            if let onReturnConnection = onReturnConnection {
+                try await onReturnConnection(connection, logger)
+            }
+
+            return poolContinuation.continuation.resume(returning: poolConnection)
+        }
+        catch {
+            logger.warning("[\(poolName)] Health check for connection \(poolConnection.id) failed")
+
+            await closeConnection(poolConnection)
         }
     }
 
