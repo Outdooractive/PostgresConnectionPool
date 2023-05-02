@@ -13,7 +13,7 @@ This package requires Swift 5.7 or higher (at least Xcode 13), and compiles on m
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/Outdooractive/PostgresConnectionPool.git", from: "0.5.4"),
+    .package(url: "https://github.com/Outdooractive/PostgresConnectionPool.git", from: "0.5.5"),
 ],
 targets: [
     .target(name: "MyTarget", dependencies: [
@@ -29,19 +29,21 @@ Please see also the [API documentation](https://swiftpackageindex.com/Outdooract
 ``` swift
 import PostgresConnectionPool
 import PostgresKit
+import PostgresNIO
 
 var logger = Logger(label: "TestApp")
 logger.logLevel = .debug
 
-let connection = PoolConfiguration.Connection(
-    username: "testuser",
-    password: "testpassword",
+let postgresConfiguration = PostgresConnection.Configuration(
     host: "postgres",
     port: 5432,
-    database: "test")
+    username: "testuser",
+    password: "testpassword",
+    database: "test",
+    tls: .disable)
 let configuration = PoolConfiguration(
     applicationName: "TestApp",
-    connection: connection,
+    postgresConfiguration: postgresConfiguration,
     connectTimeout: 10.0,
     queryTimeout: 60.0,
     poolSize: 5,

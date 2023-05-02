@@ -6,6 +6,7 @@ import Foundation
 import PostgresKit
 import PostgresNIO
 
+/// A wrapper around a postgres connection.
 public final class PostgresConnectionWrapper {
 
     private let poolConnection: PoolConnection
@@ -35,7 +36,9 @@ public final class PostgresConnectionWrapper {
 
             switch PostgresError.Code(raw: code) {
             case .queryCanceled:
-                throw PoolError.queryCancelled(query: connectionWrapper.poolConnection.query ?? "<unknown>", runtime: connectionWrapper.poolConnection.queryRuntime ?? 0.0)
+                throw PoolError.queryCancelled(
+                    query: connectionWrapper.poolConnection.query ?? "<unknown>",
+                    runtime: connectionWrapper.poolConnection.queryRuntime ?? 0.0)
             default:
                 throw PoolError.postgresError(error)
             }
@@ -54,11 +57,12 @@ public final class PostgresConnectionWrapper {
 
     // MARK: - Public interface, from PostgresConnection
 
-    /// A logger to use in case
+    /// The database logger.
     public var logger: Logger {
         postgresConnection.logger
     }
 
+    /// if the connection is closed (which would be an error).
     public var isClosed: Bool {
         postgresConnection.isClosed
     }
@@ -93,14 +97,19 @@ public final class PostgresConnectionWrapper {
         postgresConnection.sql(encoder: encoder, decoder: decoder)
     }
 
-    /// Add a handler for NotificationResponse messages on a certain channel. This is used in conjunction with PostgreSQL's `LISTEN`/`NOTIFY` support: to listen on a channel, you add a listener using this method to handle the NotificationResponse messages, then issue a `LISTEN` query to instruct PostgreSQL to begin sending NotificationResponse messages.
+    /// Add a handler for NotificationResponse messages on a certain channel.
+    ///
+    /// This is used in conjunction with PostgreSQL's `LISTEN`/`NOTIFY` support:
+    /// to listen on a channel, you add a listener using this method to handle the NotificationResponse messages,
+    /// then issue a `LISTEN` query to instruct PostgreSQL to begin sending NotificationResponse messages.
     @discardableResult
     public func addListener(
         channel: String,
         handler notificationHandler: @escaping (PostgresListenContext, PostgresMessage.NotificationResponse) -> Void)
         -> PostgresListenContext
     {
-        postgresConnection.addListener(channel: channel, handler: notificationHandler)
+        poolConnection.query = "LISTEN \(channel)"
+        return postgresConnection.addListener(channel: channel, handler: notificationHandler)
     }
 
 }
