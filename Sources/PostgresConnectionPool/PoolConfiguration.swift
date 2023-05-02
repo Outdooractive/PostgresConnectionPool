@@ -42,6 +42,7 @@ public struct PoolConfiguration {
     public let connectTimeout: TimeInterval
 
     /// TImeout for individual database queries, in seconds (default: none).
+    /// - warning: This includes the time the server needs to send the data to the client, so be careful over slow connections.
     public let queryTimeout: TimeInterval?
 
     /// The maximum number of open connections to the database (default: 10).
@@ -63,6 +64,15 @@ public struct PoolConfiguration {
     /// Called just before a connection is being closed.
     public var onCloseConnection: ((PostgresConnection, Logger) async throws -> Void)?
 
+    /// Pool configuation.
+    ///
+    /// - Parameters:
+    ///   - applicationName: The name used for database connections
+    ///   - postgresConfiguration: Connection parameters to the database
+    ///   - connectTimeout: Timeout for opening new connections
+    ///   - queryTimeout: TImeout for individual database queries
+    ///   - poolSize: The maximum number of open connections
+    ///   - maxIdleConnections: The maximum number of idle connections
     public init(
         applicationName: String,
         postgresConfiguration: PostgresConnection.Configuration,

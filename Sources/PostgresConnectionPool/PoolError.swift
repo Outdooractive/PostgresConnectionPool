@@ -14,7 +14,7 @@ public enum PoolError: Error {
     case connectionFailed
     /// The pool was already shut down.
     case poolDestroyed
-    /// Some PostgreSQL error
+    /// Some PostgreSQL error.
     case postgresError(PSQLError)
     /// The query was cancelled by the server.
     case queryCancelled(query: String, runtime: Double)

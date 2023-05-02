@@ -4,6 +4,7 @@
 
 import Foundation
 
+/// The possible states of a database connection.
 public enum PoolConnectionState: Equatable {
 
     /// The connection is in use.
