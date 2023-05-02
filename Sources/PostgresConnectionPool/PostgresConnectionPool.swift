@@ -48,22 +48,32 @@ public actor PostgresConnectionPool {
         self.eventLoopGroup = MultiThreadedEventLoopGroup(numberOfThreads: configuration.poolSize * 2)
 
         self.connectionName = String(configuration.applicationName.replacingPattern("[^-\\w\\d\\s()]", with: "").prefix(PostgresConnectionPool.postgresMaxNameLength))
-        self.poolName = "\(configuration.connection.username)@\(configuration.connection.host):\(configuration.connection.port)/\(configuration.connection.database)"
         self.poolSize = configuration.poolSize
         self.maxIdleConnections = configuration.maxIdleConnections
         self.queryTimeout = configuration.queryTimeout
+
+        let dbUsername = configuration.postgresConfiguration.username
+        let dbDatabase = configuration.postgresConfiguration.database ?? dbUsername
+        if let host = configuration.postgresConfiguration.host,
+           let port = configuration.postgresConfiguration.port
+        {
+            self.poolName = "\(dbUsername)@\(host):\(port)/\(dbDatabase)"
+        }
+        else if let unixSocketPath = configuration.postgresConfiguration.unixSocketPath {
+            self.poolName = "postgresql:///\(dbDatabase)?user=\(dbUsername)&host=\(unixSocketPath)"
+        }
+        else if let channel = configuration.postgresConfiguration.establishedChannel {
+            self.poolName = "\(dbUsername)@EstablishedChannel<\(channel)>/\(dbDatabase)"
+        }
+        else {
+            self.poolName = "<Unknown connection>"
+        }
 
         self.onOpenConnection = configuration.onOpenConnection
         self.onReturnConnection = configuration.onReturnConnection
         self.onCloseConnection = configuration.onCloseConnection
 
-        var postgresConfiguration = PostgresConnection.Configuration(
-            host: configuration.connection.host,
-            port: configuration.connection.port,
-            username: configuration.connection.username,
-            password: configuration.connection.password,
-            database: configuration.connection.database,
-            tls: .disable)
+        var postgresConfiguration = configuration.postgresConfiguration
         postgresConfiguration.options.connectTimeout = .seconds(Int64(configuration.connectTimeout))
         self.postgresConfiguration = postgresConfiguration
     }

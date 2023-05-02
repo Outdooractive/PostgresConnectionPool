@@ -9,6 +9,7 @@ import PostgresNIO
 public struct PoolConfiguration {
 
     /// PostgreSQL connection parameters.
+    @available(*, deprecated, message: "Use `PostgresConnection.Configuration` etc. instead.")
     public struct Connection {
         let username: String
         let password: String
@@ -35,7 +36,7 @@ public struct PoolConfiguration {
     public let applicationName: String
 
     /// Connection parameters to the database.
-    public let connection: Connection
+    public let postgresConfiguration: PostgresConnection.Configuration
 
     /// Timeout for opening new connections to the PostgreSQL database, in seconds (default: 5 seconds).
     public let connectTimeout: TimeInterval
@@ -64,14 +65,14 @@ public struct PoolConfiguration {
 
     public init(
         applicationName: String,
-        connection: Connection,
+        postgresConfiguration: PostgresConnection.Configuration,
         connectTimeout: TimeInterval = 5.0,
         queryTimeout: TimeInterval? = nil,
         poolSize: Int = 10,
         maxIdleConnections: Int? = nil)
     {
         self.applicationName = applicationName
-        self.connection = connection
+        self.postgresConfiguration = postgresConfiguration
         self.connectTimeout = connectTimeout.atLeast(1.0)
         self.queryTimeout = queryTimeout?.atLeast(1.0)
         self.poolSize = poolSize.atLeast(1)
@@ -80,6 +81,30 @@ public struct PoolConfiguration {
         self.onReturnConnection = { connection, logger in
             try await connection.query("SELECT 1", logger: logger)
         }
+    }
+
+    @available(*, deprecated, message: "Use `init(applicationName:postgresConfiguration:connectTimeout:queryTimeout:poolSize:maxIdleConnections:)` instead.")
+    public init(
+        applicationName: String,
+        connection: Connection,
+        connectTimeout: TimeInterval = 5.0,
+        queryTimeout: TimeInterval? = nil,
+        poolSize: Int = 10,
+        maxIdleConnections: Int? = nil)
+    {
+        let postgresConfiguration = PostgresConnection.Configuration(
+            host: connection.host,
+            port: connection.port,
+            username: connection.username,
+            password: connection.password,
+            database: connection.database,
+            tls: .disable)
+        self.init(applicationName: applicationName,
+                  postgresConfiguration: postgresConfiguration,
+                  connectTimeout: connectTimeout,
+                  queryTimeout: queryTimeout,
+                  poolSize: poolSize,
+                  maxIdleConnections: maxIdleConnections)
     }
 
 }
