@@ -76,8 +76,7 @@ public actor PostgresConnectionPool {
     @discardableResult
     public func connection<T>(
         _ callback: (PostgresConnectionWrapper) async throws -> T)
-        async throws
-        -> T
+        async throws -> T
     {
         var poolConnection: PoolConnection?
 
@@ -189,6 +188,7 @@ public actor PostgresConnectionPool {
             openConnections: connections.count,
             activeConnections: connections.count - available.count,
             availableConnections: available.count,
+            usageCounter: PoolConnection.globalUsageCounter,
             connections: connections)
     }
 
@@ -425,6 +425,8 @@ public actor PostgresConnectionPool {
             let connectionRuntime = fabs(connectionStartTimestamp.timeIntervalSinceNow)
             logger.debug("[\(poolName)] Connection \(poolConnection.id) failed after \(connectionRuntime.rounded(toPlaces: 2))s: \(error)")
             poolConnection.state = .closed
+
+            // TODO: Don't just open a new connection, check first if this is a permanent error like wrong password etc.
 
             Task.detached { [weak self] in
                 await self?.openConnection()

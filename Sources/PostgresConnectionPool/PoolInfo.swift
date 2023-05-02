@@ -9,19 +9,20 @@ public struct PoolInfo {
 
     /// Information about an open connection.
     public struct ConnectionInfo {
-        public var id: Int
-        public var name: String
-        public var usageCounter: Int
-        public var query: String?
-        public var queryRuntime: TimeInterval?
-        public var state: PoolConnectionState
+        public let id: Int
+        public let name: String
+        public let usageCounter: Int
+        public let query: String?
+        public let queryRuntime: TimeInterval?
+        public let state: PoolConnectionState
     }
 
-    public var name: String
-    public var openConnections: Int
-    public var activeConnections: Int
-    public var availableConnections: Int
+    public let name: String
+    public let openConnections: Int
+    public let activeConnections: Int
+    public let availableConnections: Int
+    public let usageCounter: Int
 
-    public var connections: [ConnectionInfo]
+    public let connections: [ConnectionInfo]
 
 }

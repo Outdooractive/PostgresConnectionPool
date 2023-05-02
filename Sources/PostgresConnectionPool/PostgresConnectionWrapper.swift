@@ -89,6 +89,7 @@ public final class PostgresConnectionWrapper {
         decoder: PostgresDataDecoder = PostgresDataDecoder())
         -> SQLDatabase
     {
+        // TODO: Track the current query
         postgresConnection.sql(encoder: encoder, decoder: decoder)
     }
 
