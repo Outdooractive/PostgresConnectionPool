@@ -433,10 +433,31 @@ public actor PostgresConnectionPool {
         }
         catch {
             let connectionRuntime = fabs(connectionStartTimestamp.timeIntervalSinceNow)
-            logger.debug("[\(poolName)] Connection \(poolConnection.id) failed after \(connectionRuntime.rounded(toPlaces: 2))s: \(error)")
             poolConnection.state = .closed
 
-            // TODO: Don't just open a new connection, check first if this is a permanent error like wrong password etc.
+            let logMessage: Logger.Message = "[\(poolName)] Connection \(poolConnection.id) failed after \(connectionRuntime.rounded(toPlaces: 2))s: \(error)"
+
+            // Don't just open a new connection, check first if this is a permanent error like wrong password etc.
+            if let pslError = error as? PSQLError,
+               let serverInfo = pslError.serverInfo,
+               let code = serverInfo[.sqlState]
+            {
+                // TODO: List of hard errors
+                switch PostgresError.Code(raw: code) {
+                case .adminShutdown,
+                     .cannotConnectNow,
+                     .invalidAuthorizationSpecification,
+                     .invalidName,
+                     .invalidPassword:
+                    logger.error(logMessage)
+                    return
+
+                default:
+                    break
+                }
+            }
+
+            logger.warning(logMessage)
 
             Task.detached { [weak self] in
                 await self?.openConnection()
