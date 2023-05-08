@@ -33,7 +33,8 @@ public actor PostgresConnectionPool {
     private var inUseConnectionCounts: Deque<Int> = []
 
     private var didStartWatcherTask = false
-    private var didShutdown = false
+    public private(set) var didShutdown = false
+    public private(set) var shutdownError: PoolError?
 
     // MARK: -
 
@@ -158,6 +159,8 @@ public actor PostgresConnectionPool {
     ///
     /// Must be done here since Swift doesn't yet allow async deinit.
     public func shutdown() async {
+        guard !didShutdown else { return }
+
         logger.debug("[\(poolName)] shutdown()")
 
         didShutdown = true
@@ -179,6 +182,15 @@ public actor PostgresConnectionPool {
 
         // Shut down the event loop.
         try? await eventLoopGroup.shutdownGracefully()
+    }
+
+    // Shutdown due to an unrecoverable error
+    private func shutdown(withError error: PoolError) async {
+        guard !didShutdown else { return }
+
+        shutdownError = error
+
+        await shutdown()
     }
 
     /// Information about the pool and its open connections.
@@ -438,22 +450,53 @@ public actor PostgresConnectionPool {
             let logMessage: Logger.Message = "[\(poolName)] Connection \(poolConnection.id) failed after \(connectionRuntime.rounded(toPlaces: 2))s: \(error)"
 
             // Don't just open a new connection, check first if this is a permanent error like wrong password etc.
-            if let pslError = error as? PSQLError,
-               let serverInfo = pslError.serverInfo,
-               let code = serverInfo[.sqlState]
-            {
-                // TODO: List of hard errors
-                switch PostgresError.Code(raw: code) {
-                case .adminShutdown,
-                     .cannotConnectNow,
-                     .invalidAuthorizationSpecification,
-                     .invalidName,
-                     .invalidPassword:
+
+            // TODO: Check which of these errors is actually fatal
+            if let psqlError = error as? PSQLError {
+                switch psqlError.code {
+                case .authMechanismRequiresPassword,
+                     .connectionClosed,
+                     .connectionError,
+                     .connectionQuiescing,
+                     .sslUnsupported,
+                     .failedToAddSSLHandler,
+                     .invalidCommandTag,
+                     .messageDecodingFailure,
+                     .receivedUnencryptedDataAfterSSLRequest,
+                     .saslError,
+                     .server,
+                     .unexpectedBackendMessage,
+                     .unsupportedAuthMechanism:
                     logger.error(logMessage)
+                    await shutdown(withError: PoolError.postgresError(psqlError))
                     return
+
+                case .queryCancelled,
+                     .tooManyParameters,
+                     .uncleanShutdown:
+                    break
 
                 default:
                     break
+                }
+
+                if let serverInfo = psqlError.serverInfo,
+                   let code = serverInfo[.sqlState]
+                {
+                    // TODO: Check which of these errors is actually fatal
+                    switch PostgresError.Code(raw: code) {
+                    case .adminShutdown,
+                         .cannotConnectNow,
+                         .invalidAuthorizationSpecification,
+                         .invalidName,
+                         .invalidPassword:
+                        logger.error(logMessage)
+                        await shutdown(withError: PoolError.postgresError(psqlError))
+                        return
+
+                    default:
+                        break
+                    }
                 }
             }
 
