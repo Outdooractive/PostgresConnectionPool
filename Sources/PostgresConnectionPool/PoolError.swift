@@ -22,3 +22,37 @@ public enum PoolError: Error {
     case unknown
 
 }
+
+// MARK: - CustomStringConvertible
+
+extension PoolError: CustomStringConvertible {
+
+    public var description: String {
+        switch self {
+        case .cancelled: return "<PoolError: cancelled>"
+        case .connectionFailed: return "<PoolError: connectionFailed>"
+        case .poolDestroyed: return "<PoolError: poolDestroyed>"
+        case .postgresError(let psqlError): return "<PoolError: postgresError=\(psqlError.description)>"
+        case .queryCancelled: return "<PoolError: queryCancelled>"
+        case .unknown: return "<PoolError: unknown>"
+        }
+    }
+
+}
+
+// MARK: - CustomDebugStringConvertible
+
+extension PoolError: CustomDebugStringConvertible {
+
+    public var debugDescription: String {
+        switch self {
+        case .cancelled: return "<PoolError: cancelled>"
+        case .connectionFailed: return "<PoolError: connectionFailed>"
+        case .poolDestroyed: return "<PoolError: poolDestroyed>"
+        case .postgresError(let psqlError): return "<PoolError: postgresError=\(psqlError.debugDescription)>"
+        case .queryCancelled(query: let query, runtime: let runtime): return "<PoolError: query '\(query)' cancelled after \(runtime.rounded(toPlaces: 3))s>"
+        case .unknown: return "<PoolError: unknown>"
+        }
+    }
+
+}
