@@ -15,6 +15,7 @@ final class ConnectionErrorTests: XCTestCase {
     }()
 
     // TODO: Clean up the error checking
+    // TODO: Check that the Docker PostgreSQL server is actually up and available first or most tests will fail anyway
 
     private func withConfiguration(
         _ configuration: PoolConfiguration,
@@ -41,19 +42,19 @@ final class ConnectionErrorTests: XCTestCase {
     }
 
     func testConnectWrongHost() async throws {
-        try await withConfiguration(self.poolConfiguration(host: "notworking"), expectedErrorDescription: "<PoolError: postgresError='Database error: connectionError'>")
+        try await withConfiguration(self.poolConfiguration(host: "notworking"), expectedErrorDescription: "<PoolError: postgresError=<PSQLError: connectionError>>")
     }
 
     func testConnectWrongPort() async throws {
-        try await withConfiguration(self.poolConfiguration(port: 99999), expectedErrorDescription: "<PoolError: postgresError='Database error: connectionError'>")
+        try await withConfiguration(self.poolConfiguration(port: 99999), expectedErrorDescription: "<PoolError: postgresError=<PSQLError: connectionError>>")
     }
 
     func testConnectWrongUsername() async throws {
-        try await withConfiguration(self.poolConfiguration(username: "notworking"), expectedErrorDescription: "<PoolError: postgresError='FATAL: password authentication failed for user \"notworking\"'>")
+        try await withConfiguration(self.poolConfiguration(username: "notworking"), expectedErrorDescription: "<PoolError: postgresError=<PSQLError: FATAL: password authentication failed for user \"notworking\">>")
     }
 
     func testConnectWrongPassword() async throws {
-        try await withConfiguration(self.poolConfiguration(password: "notworking"), expectedErrorDescription: "<PoolError: postgresError='FATAL: password authentication failed for user \"test_username\"'>")
+        try await withConfiguration(self.poolConfiguration(password: "notworking"), expectedErrorDescription: "<PoolError: postgresError=<PSQLError: FATAL: password authentication failed for user \"test_username\">>")
     }
 
     func testConnectInvalidTLSConfig() async throws {
@@ -61,7 +62,7 @@ final class ConnectionErrorTests: XCTestCase {
         tlsConfiguration.maximumTLSVersion = .tlsv1 // New Postgres versions want at least TLSv1.2
 
         let tls: PostgresConnection.Configuration.TLS = .require(try .init(configuration: tlsConfiguration))
-        try await withConfiguration(self.poolConfiguration(tls: tls), expectedErrorDescription: "<PoolError: postgresError='Database error: sslUnsupported'>")
+        try await withConfiguration(self.poolConfiguration(tls: tls), expectedErrorDescription: "<PoolError: postgresError=<PSQLError: sslUnsupported>>")
     }
 
     // MARK: -
