@@ -6,6 +6,7 @@ import Foundation
 
 extension Task where Failure == Error {
 
+    /// Perform a task after some time.
     @discardableResult
     static func after(
         seconds: TimeInterval,

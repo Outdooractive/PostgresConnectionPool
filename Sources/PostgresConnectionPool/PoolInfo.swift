@@ -3,6 +3,7 @@
 //
 
 import Foundation
+import PostgresNIO
 
 /// General information about the pool and its open connections.
 public struct PoolInfo {
@@ -36,5 +37,11 @@ public struct PoolInfo {
 
     /// Information about individual open connections to the server.
     public let connections: [ConnectionInfo]
+
+
+    /// Whether the pool is accepting connections or was shutdown.
+    public let isShutdown: Bool
+    /// The Postgres error If the pool was shutdown forcibly.
+    public let shutdownError: PSQLError?
 
 }

@@ -8,6 +8,7 @@ import Foundation
 
 extension String {
 
+    /// A Boolean value indicating whether the string matches a regular expression.
     func matches(
         _ regexp: String,
         caseInsensitive: Bool = false)
@@ -19,6 +20,7 @@ extension String {
         return self.range(of: regexp, options: options) != nil
     }
 
+    /// Returns a new string with the matches of the regular expression replaced with some other string.
     func replacingPattern(
         _ regexp: String,
         with replacement: String,
