@@ -7,7 +7,7 @@ import Foundation
 
 extension FloatingPoint {
 
-    /// Returns rounded FloatingPoint to specified number of places
+    /// Returns rounded FloatingPoint to specified number of places.
     func rounded(toPlaces places: Int) -> Self {
         guard places >= 0 else { return self }
         var divisor: Self = 1
@@ -15,7 +15,7 @@ extension FloatingPoint {
         return (self * divisor).rounded() / divisor
     }
 
-    /// Rounds current FloatingPoint to specified number of places
+    /// Rounds current FloatingPoint to specified number of places.
     mutating func round(toPlaces places: Int) {
         self = rounded(toPlaces: places)
     }

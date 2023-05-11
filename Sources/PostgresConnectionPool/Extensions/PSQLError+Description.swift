@@ -9,6 +9,7 @@ import PostgresNIO
 
 extension PSQLError: CustomStringConvertible {
 
+    /// A short error description.
     public var description: String {
         if let serverInfo = self.serverInfo,
            let severity = serverInfo[.severity],
@@ -26,12 +27,14 @@ extension PSQLError: CustomStringConvertible {
 
 extension PSQLError: CustomDebugStringConvertible {
 
+    /// A detailed error description suitable for debugging queries and other problems with the server.
     public var debugDescription: String {
         var messageElements: [String] = [
             "code: \(self.code)"
         ]
 
         if let serverInfo = self.serverInfo {
+            // Field -> display name
             let fields: OrderedDictionary<PSQLError.ServerInfo.Field, String> = [
                 .severity: "severity",
                 .message: "message",
@@ -48,9 +51,9 @@ extension PSQLError: CustomDebugStringConvertible {
                 .sqlState: "sqlState",
             ]
 
-            let serverInfoELements = fields.compactMap({ field -> String? in
-                guard let value = serverInfo[field.0] else { return nil }
-                return "\(field.1): \(value)"
+            let serverInfoELements = fields.compactMap({ fieldAndName -> String? in
+                guard let value = serverInfo[fieldAndName.0] else { return nil }
+                return "\(fieldAndName.1): \(value)"
             })
 
             messageElements.append("serverInfo: [\(serverInfoELements.joined(separator: ", "))]")

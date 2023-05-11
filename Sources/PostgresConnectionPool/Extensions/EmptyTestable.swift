@@ -10,6 +10,8 @@ import Foundation
 protocol EmptyTestable {
 
     var isEmpty: Bool { get }
+
+    /// A Boolean value indicating whether the collection is **not** empty.
     var isNotEmpty: Bool { get }
 
 }

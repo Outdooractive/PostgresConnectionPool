@@ -3,6 +3,7 @@
 //
 
 import Foundation
+import PostgresNIO
 
 /// General information about the pool and its open connections.
 public struct PoolInfo {
@@ -36,5 +37,57 @@ public struct PoolInfo {
 
     /// Information about individual open connections to the server.
     public let connections: [ConnectionInfo]
+
+
+    /// Whether the pool is accepting connections or was shutdown.
+    public let isShutdown: Bool
+    /// The Postgres error If the pool was shutdown forcibly.
+    public let shutdownError: PSQLError?
+
+}
+
+// MARK: - CustomStringConvertible
+
+extension PoolInfo: CustomStringConvertible {
+
+    public var description: String {
+        var lines: [String] = [
+            "Pool: \(name)",
+            "Connections: \(openConnections)/\(activeConnections)/\(availableConnections) (open/active/available)",
+            "Usage: \(usageCounter)",
+            "Shutdown? \(isShutdown) \(shutdownError != nil ? "(\(shutdownError!.description))" : "")",
+        ]
+
+        if connections.isNotEmpty {
+            lines.append("Connections:")
+
+            for connection in connections.sorted(by: { $0.id < $1.id }) {
+                lines.append(contentsOf: connection.description.components(separatedBy: "\n").map({ "  " + $0 }))
+            }
+        }
+
+        return lines.joined(separator: "\n")
+    }
+
+}
+
+extension PoolInfo.ConnectionInfo: CustomStringConvertible {
+
+    public var description: String {
+        var lines: [String] = [
+            "Connection: \(id) (\(name))",
+            "  State: \(state)",
+            "  Usage: \(usageCounter)",
+        ]
+
+        if let query {
+            lines.append("  Query: \(query)")
+            if let queryRuntime {
+                lines.append("  Runtime: \(queryRuntime.rounded(toPlaces: 3))s")
+            }
+        }
+
+        return lines.joined(separator: "\n")
+    }
 
 }
