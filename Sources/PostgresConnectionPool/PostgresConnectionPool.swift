@@ -200,6 +200,25 @@ public actor PostgresConnectionPool {
         await shutdown()
     }
 
+    /// Forcibly close all idle connections.
+    public func closeIdleConnections() async {
+        guard !isShutdown else { return }
+
+        let availableCopy = available
+        available.removeAll()
+
+        logger.debug("[\(poolName)] Closing \(availableCopy.count) idle connections")
+
+        for poolConnection in availableCopy {
+            await closeConnection(poolConnection)
+        }
+
+        connections.removeAll(where: { connection in
+            connection.state == .closed
+            || (connection.state != .connecting && connection.connection?.isClosed ?? false)
+        })
+    }
+
     /// Information about the pool and its open connections.
     public func poolInfo() async -> PoolInfo {
         let connections = connections.compactMap { connection -> PoolInfo.ConnectionInfo? in
@@ -259,12 +278,12 @@ public actor PostgresConnectionPool {
                 })
         }
 
+        await checkIdleConnections()
+
         connections.removeAll(where: { connection in
             connection.state == .closed
                 || (connection.state != .connecting && connection.connection?.isClosed ?? false)
         })
-
-        await closeIdleConnections()
 
         let usageCounter = connections.reduce(0) { $0 + $1.usageCounter }
         logger.debug("[\(poolName)] \(connections.count) connections (\(available.count) available, \(usageCounter) queries), \(continuations.count) continuations left")
@@ -281,7 +300,7 @@ public actor PostgresConnectionPool {
 
     // TODO: This doesn't work well with short bursts of activity that fall between the 5 seconds check interval
     /// CLose idle connections.
-    private func closeIdleConnections() async {
+    private func checkIdleConnections() async {
         guard let maxIdleConnections else { return }
 
         // 60 seconds

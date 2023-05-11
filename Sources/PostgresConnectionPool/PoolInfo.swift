@@ -45,3 +45,49 @@ public struct PoolInfo {
     public let shutdownError: PSQLError?
 
 }
+
+// MARK: - CustomStringConvertible
+
+extension PoolInfo: CustomStringConvertible {
+
+    public var description: String {
+        var lines: [String] = [
+            "Pool: \(name)",
+            "Connections: \(openConnections)/\(activeConnections)/\(availableConnections) (open/active/available)",
+            "Usage: \(usageCounter)",
+            "Shutdown? \(isShutdown) \(shutdownError != nil ? "(\(shutdownError!.description))" : "")",
+        ]
+
+        if connections.isNotEmpty {
+            lines.append("Connections:")
+
+            for connection in connections.sorted(by: { $0.id < $1.id }) {
+                lines.append(contentsOf: connection.description.components(separatedBy: "\n").map({ "  " + $0 }))
+            }
+        }
+
+        return lines.joined(separator: "\n")
+    }
+
+}
+
+extension PoolInfo.ConnectionInfo: CustomStringConvertible {
+
+    public var description: String {
+        var lines: [String] = [
+            "Connection: \(id) (\(name))",
+            "  State: \(state)",
+            "  Usage: \(usageCounter)",
+        ]
+
+        if let query {
+            lines.append("  Query: \(query)")
+            if let queryRuntime {
+                lines.append("  Runtime: \(queryRuntime.rounded(toPlaces: 3))s")
+            }
+        }
+
+        return lines.joined(separator: "\n")
+    }
+
+}
