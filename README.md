@@ -13,7 +13,7 @@ This package requires Swift 5.7 or higher (at least Xcode 13), and compiles on m
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/Outdooractive/PostgresConnectionPool.git", from: "0.6.1"),
+    .package(url: "https://github.com/Outdooractive/PostgresConnectionPool.git", from: "0.7.0"),
 ],
 targets: [
     .target(name: "MyTarget", dependencies: [
@@ -51,9 +51,9 @@ let configuration = PoolConfiguration(
 let pool = PostgresConnectionPool(configuration: configuration, logger: logger)
 
 // Fetch a connection from the pool and do something with it...
-try await pool.connection(callback: { connection in
+try await pool.connection { connection in
     try await connection.query(PostgresQuery(stringLiteral: "SELECT 1"), logger: logger)
-})
+}
 
 // With PostgresKit
 func fetchObjects<T: Decodable>(_ sql: SQLQueryString) async throws -> [T] {

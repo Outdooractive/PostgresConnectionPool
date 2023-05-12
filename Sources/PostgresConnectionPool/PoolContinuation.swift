@@ -10,10 +10,12 @@ typealias PostgresCheckedContinuation = CheckedContinuation<PoolConnection, Erro
 final class PoolContinuation {
 
     let added: Date
+    let batchId: Int?
     let continuation: PostgresCheckedContinuation
 
-    init(continuation: PostgresCheckedContinuation) {
+    init(batchId: Int?, continuation: PostgresCheckedContinuation) {
         self.added = Date()
+        self.batchId = batchId
         self.continuation = continuation
     }
 

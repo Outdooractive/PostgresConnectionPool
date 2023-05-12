@@ -16,6 +16,8 @@ public struct PoolInfo {
         public let name: String
         /// Total number of queries that were sent over this connection.
         public let usageCounter: Int
+        /// The connection's batch Id.
+        public var batchId: Int?
         /// The current query, if available.
         public let query: String?
         /// The current time for the query, if available.
@@ -32,8 +34,6 @@ public struct PoolInfo {
     public let activeConnections: Int
     /// The number of connections that are currently available.
     public let availableConnections: Int
-    /// The total number of queries that were sent to the server.
-    public let usageCounter: Int
 
     /// Information about individual open connections to the server.
     public let connections: [ConnectionInfo]
@@ -53,16 +53,15 @@ extension PoolInfo: CustomStringConvertible {
     public var description: String {
         var lines: [String] = [
             "Pool: \(name)",
-            "Connections: \(openConnections)/\(activeConnections)/\(availableConnections) (open/active/available)",
-            "Usage: \(usageCounter)",
-            "Shutdown? \(isShutdown) \(shutdownError != nil ? "(\(shutdownError!.description))" : "")",
+            "  Connections: \(openConnections)/\(activeConnections)/\(availableConnections) (open/active/available)",
+            "  Is shut down? \(isShutdown) \(shutdownError != nil ? "(\(shutdownError!.description))" : "")",
         ]
 
         if connections.isNotEmpty {
-            lines.append("Connections:")
+            lines.append("  Connections:")
 
             for connection in connections.sorted(by: { $0.id < $1.id }) {
-                lines.append(contentsOf: connection.description.components(separatedBy: "\n").map({ "  " + $0 }))
+                lines.append(contentsOf: connection.description.components(separatedBy: "\n").map({ "    " + $0 }))
             }
         }
 
@@ -85,6 +84,10 @@ extension PoolInfo.ConnectionInfo: CustomStringConvertible {
             if let queryRuntime {
                 lines.append("  Runtime: \(queryRuntime.rounded(toPlaces: 3))s")
             }
+        }
+
+        if let batchId {
+            lines.append("  BatchId: \(batchId)")
         }
 
         return lines.joined(separator: "\n")

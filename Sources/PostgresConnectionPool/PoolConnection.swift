@@ -9,17 +9,17 @@ final class PoolConnection: Identifiable, Equatable {
 
     // TODO: Serialize access
     private(set) static var connectionId = 0
-    private(set) static var globalUsageCounter = 0
 
     private(set) var usageCounter = 0
 
     let id: Int
+    var batchId: Int?
+
     var connection: PostgresConnection?
     var state: PoolConnectionState = .connecting {
         didSet {
             if case .active = state {
                 usageCounter += 1
-                PoolConnection.globalUsageCounter += 1
             }
         }
     }
