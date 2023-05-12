@@ -273,7 +273,6 @@ public actor PostgresConnectionPool {
             openConnections: connections.count,
             activeConnections: connections.count - available.count,
             availableConnections: available.count,
-            usageCounter: PoolConnection.globalUsageCounter,
             connections: connections,
             isShutdown: isShutdown,
             shutdownError: shutdownError)

@@ -35,7 +35,6 @@ final class ConnectionTests: XCTestCase {
     }
 
     func testPoolInfo() async throws {
-        let initialUsageCounter = PoolConnection.globalUsageCounter
         let pool = PostgresConnectionPool(configuration: PostgresHelpers.poolConfiguration(), logger: logger)
 
         let poolInfoBefore = await pool.poolInfo()
@@ -43,7 +42,6 @@ final class ConnectionTests: XCTestCase {
         XCTAssertEqual(poolInfoBefore.activeConnections, 0)
         XCTAssertEqual(poolInfoBefore.availableConnections, 0)
         XCTAssertEqual(poolInfoBefore.openConnections, 0)
-        XCTAssertEqual(poolInfoBefore.usageCounter, initialUsageCounter)
         XCTAssertEqual(poolInfoBefore.connections.count, poolInfoBefore.openConnections)
         XCTAssertFalse(poolInfoBefore.isShutdown)
         XCTAssertNil(poolInfoBefore.shutdownError)
@@ -66,7 +64,6 @@ final class ConnectionTests: XCTestCase {
         XCTAssertEqual(poolInfo.activeConnections, 0)
         XCTAssertGreaterThan(poolInfo.availableConnections, 0)
         XCTAssertGreaterThan(poolInfo.openConnections, 0)
-        XCTAssertEqual(poolInfo.usageCounter, 1000 + initialUsageCounter)
         XCTAssertEqual(poolInfo.connections.count, poolInfo.openConnections)
         XCTAssertFalse(poolInfo.isShutdown)
         XCTAssertNil(poolInfo.shutdownError)
@@ -78,14 +75,12 @@ final class ConnectionTests: XCTestCase {
         XCTAssertEqual(poolInfoAfterShutdown.activeConnections, 0)
         XCTAssertEqual(poolInfoAfterShutdown.availableConnections, 0)
         XCTAssertEqual(poolInfoAfterShutdown.openConnections, 0)
-        XCTAssertGreaterThan(poolInfoAfterShutdown.usageCounter, 0)
         XCTAssertEqual(poolInfoAfterShutdown.connections.count, 0)
         XCTAssertTrue(poolInfoAfterShutdown.isShutdown)
         XCTAssertNil(poolInfoAfterShutdown.shutdownError)
     }
 
     func testPoolSize100() async throws {
-        let initialUsageCounter = PoolConnection.globalUsageCounter
         let pool = PostgresConnectionPool(configuration: PostgresHelpers.poolConfiguration(poolSize: 100), logger: logger)
 
         let start = 1
@@ -105,7 +100,6 @@ final class ConnectionTests: XCTestCase {
         XCTAssertEqual(poolInfo.activeConnections, 0)
         XCTAssertGreaterThan(poolInfo.availableConnections, 0)
         XCTAssertGreaterThan(poolInfo.openConnections, 0)
-        XCTAssertEqual(poolInfo.usageCounter, 10000 + initialUsageCounter)
         XCTAssertEqual(poolInfo.connections.count, poolInfo.openConnections)
         XCTAssertFalse(poolInfo.isShutdown)
         XCTAssertNil(poolInfo.shutdownError)
@@ -116,7 +110,6 @@ final class ConnectionTests: XCTestCase {
         XCTAssertEqual(poolInfoIdleClosed.activeConnections, 0)
         XCTAssertEqual(poolInfoIdleClosed.availableConnections, 0)
         XCTAssertEqual(poolInfoIdleClosed.openConnections, 0)
-        XCTAssertEqual(poolInfoIdleClosed.usageCounter, 10000 + initialUsageCounter)
         XCTAssertEqual(poolInfoIdleClosed.connections.count, poolInfoIdleClosed.openConnections)
         XCTAssertFalse(poolInfoIdleClosed.isShutdown)
         XCTAssertNil(poolInfoIdleClosed.shutdownError)

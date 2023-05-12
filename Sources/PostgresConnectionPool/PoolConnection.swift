@@ -9,7 +9,6 @@ final class PoolConnection: Identifiable, Equatable {
 
     // TODO: Serialize access
     private(set) static var connectionId = 0
-    private(set) static var globalUsageCounter = 0
 
     private(set) var usageCounter = 0
 
@@ -21,7 +20,6 @@ final class PoolConnection: Identifiable, Equatable {
         didSet {
             if case .active = state {
                 usageCounter += 1
-                PoolConnection.globalUsageCounter += 1
             }
         }
     }
