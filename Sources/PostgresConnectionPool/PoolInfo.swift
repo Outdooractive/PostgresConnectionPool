@@ -16,6 +16,8 @@ public struct PoolInfo {
         public let name: String
         /// Total number of queries that were sent over this connection.
         public let usageCounter: Int
+        /// The connection's batch Id.
+        public var batchId: Int?
         /// The current query, if available.
         public let query: String?
         /// The current time for the query, if available.
@@ -85,6 +87,10 @@ extension PoolInfo.ConnectionInfo: CustomStringConvertible {
             if let queryRuntime {
                 lines.append("  Runtime: \(queryRuntime.rounded(toPlaces: 3))s")
             }
+        }
+
+        if let batchId {
+            lines.append("  BatchId: \(batchId)")
         }
 
         return lines.joined(separator: "\n")

@@ -14,6 +14,8 @@ final class PoolConnection: Identifiable, Equatable {
     private(set) var usageCounter = 0
 
     let id: Int
+    var batchId: Int?
+
     var connection: PostgresConnection?
     var state: PoolConnectionState = .connecting {
         didSet {

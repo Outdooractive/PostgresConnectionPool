@@ -85,22 +85,34 @@ public actor PostgresConnectionPool {
 //    }
 
     /// Takes one connection from the pool and dishes it out to the caller.
+    ///
+    /// - Parameters:
+    ///   - batchId: An optional integer value associated with the connection. See also ``abortBatch(_:)``.
+    ///   - callback: A closure with a connection to the database server.
     @discardableResult
     public func connection<T>(
+        batchId: Int? = nil,
         _ callback: (PostgresConnectionWrapper) async throws -> T)
         async throws -> T
     {
         var poolConnection: PoolConnection?
 
         do {
-            poolConnection = try await getConnection()
+            poolConnection = try await getConnection(batchId: batchId)
 
             if Task.isCancelled {
                 await releaseConnection(poolConnection!)
+
+                if let batchId {
+                    await abortBatch(batchId)
+                }
+
                 throw PoolError.cancelled
             }
 
-            let result = try await PostgresConnectionWrapper.distribute(poolConnection: poolConnection, callback: callback)
+            let result = try await PostgresConnectionWrapper.distribute(
+                poolConnection: poolConnection,
+                callback: callback)
 
             await releaseConnection(poolConnection!)
 
@@ -118,11 +130,11 @@ public actor PostgresConnectionPool {
     }
 
     /// Adds a connection placeholder to the list of waiting connections.
-    private func getConnection() async throws -> PoolConnection {
+    private func getConnection(batchId: Int? = nil) async throws -> PoolConnection {
         guard !isShutdown else { throw PoolError.poolDestroyed(shutdownError) }
 
         return try await withCheckedThrowingContinuation({ (continuation: PostgresCheckedContinuation) in
-            self.continuations.append(PoolContinuation(continuation: continuation))
+            self.continuations.append(PoolContinuation(batchId: batchId, continuation: continuation))
 
             Task.detached { [weak self] in
                 await self?.handleNextContinuation()
@@ -154,8 +166,28 @@ public actor PostgresConnectionPool {
             assert(available.contains(connection), "Connections in state 'available' should be available")
         }
 
+        connection.query = nil
+        connection.batchId = nil
+
         Task.detached { [weak self] in
             await self?.handleNextContinuation()
+        }
+    }
+
+    /// Aborts all waiting queries with the given `batchId`.
+    public func abortBatch(_ batchId: Int) async {
+        let countBefore = continuations.count
+
+        continuations.removeAll(where: { poolContinuation in
+            guard poolContinuation.batchId == batchId else { return false }
+
+            poolContinuation.continuation.resume(throwing: PoolError.cancelled)
+            return true
+        })
+
+        let countRemoved = countBefore - continuations.count
+        if countRemoved > 0 {
+            logger.debug("[\(poolName)] Removed \(countRemoved) continuations for batch \(batchId)")
         }
     }
 
@@ -220,12 +252,17 @@ public actor PostgresConnectionPool {
     }
 
     /// Information about the pool and its open connections.
-    public func poolInfo() async -> PoolInfo {
+    public func poolInfo(batchId: Int? = nil) async -> PoolInfo {
         let connections = connections.compactMap { connection -> PoolInfo.ConnectionInfo? in
-            PoolInfo.ConnectionInfo(
+            if let batchId, connection.batchId != batchId {
+                return nil
+            }
+
+            return PoolInfo.ConnectionInfo(
                 id: connection.id,
                 name: nameForConnection(id: connection.id),
                 usageCounter: connection.usageCounter,
+                batchId: connection.batchId,
                 query: connection.query,
                 queryRuntime: connection.queryRuntime,
                 state: connection.state)
@@ -388,6 +425,7 @@ public actor PostgresConnectionPool {
         }
 
         poolConnection.state = .active(Date())
+        poolConnection.batchId = poolContinuation.batchId
 
         do {
             // Connection check, etc.
