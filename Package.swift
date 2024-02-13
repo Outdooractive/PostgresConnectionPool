@@ -11,9 +11,9 @@ let package = Package(
         .library(name: "PostgresConnectionPool", targets: ["PostgresConnectionPool"]),
     ],
     dependencies: [
-        .package(url: "https://github.com/apple/swift-collections", from: "1.0.2"),
-        .package(url: "https://github.com/vapor/postgres-nio.git", from: "1.14.2"),
-        .package(url: "https://github.com/vapor/postgres-kit", from: "2.10.0"),
+        .package(url: "https://github.com/apple/swift-collections", from: "1.1.0"),
+        .package(url: "https://github.com/vapor/postgres-nio.git", from: "1.20.2"),
+        .package(url: "https://github.com/vapor/postgres-kit", from: "2.12.3"),
     ],
     targets: [
         .target(
