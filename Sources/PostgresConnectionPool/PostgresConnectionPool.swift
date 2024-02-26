@@ -20,6 +20,7 @@ public actor PostgresConnectionPool {
     private let connectionName: String
     private let poolName: String
     private let poolSize: Int
+    private let connectionRetryInterval: TimeInterval
     private let maxIdleConnections: Int?
     private let queryTimeout: TimeInterval?
 
@@ -51,6 +52,7 @@ public actor PostgresConnectionPool {
 
         self.connectionName = String(configuration.applicationName.replacingPattern("[^-\\w\\d\\s()]", with: "").prefix(PostgresConnectionPool.postgresMaxNameLength))
         self.poolSize = configuration.poolSize
+        self.connectionRetryInterval = configuration.connectionRetryInterval
         self.maxIdleConnections = configuration.maxIdleConnections
         self.queryTimeout = configuration.queryTimeout
 
@@ -527,14 +529,13 @@ public actor PostgresConnectionPool {
             if let psqlError = error as? PSQLError {
                 switch psqlError.code {
                 case .authMechanismRequiresPassword,
-                     .connectionClosed,
-                     .connectionError,
-                     .connectionQuiescing,
+                     .clientClosedConnection,
                      .failedToAddSSLHandler,
                      .invalidCommandTag,
                      .messageDecodingFailure,
                      .receivedUnencryptedDataAfterSSLRequest,
                      .saslError,
+                     .serverClosedConnection,
                      .sslUnsupported,
                      .unexpectedBackendMessage,
                      .unsupportedAuthMechanism:
@@ -546,6 +547,10 @@ public actor PostgresConnectionPool {
                      .tooManyParameters,
                      .uncleanShutdown:
                     break
+
+                case .connectionError:
+                    let delay = UInt64(connectionRetryInterval * 1_000_000_000)
+                    try? await Task<Never, Never>.sleep(nanoseconds: delay)
 
                 default:
                     break

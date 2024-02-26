@@ -41,6 +41,9 @@ public struct PoolConfiguration {
     /// Timeout for opening new connections to the PostgreSQL database, in seconds (default: 5 seconds).
     public let connectTimeout: TimeInterval
 
+    /// Time to wait before trying another connection attempt (default: 0.5 seconds).
+    public let connectionRetryInterval: TimeInterval
+
     /// TImeout for individual database queries, in seconds (default: none).
     /// - warning: This includes the time the server needs to send the data to the client, so be careful over slow connections.
     public let queryTimeout: TimeInterval?
@@ -77,6 +80,7 @@ public struct PoolConfiguration {
         applicationName: String,
         postgresConfiguration: PostgresConnection.Configuration,
         connectTimeout: TimeInterval = 5.0,
+        connectionRetryInterval: TimeInterval = 0.5,
         queryTimeout: TimeInterval? = nil,
         poolSize: Int = 10,
         maxIdleConnections: Int? = nil)
@@ -84,6 +88,7 @@ public struct PoolConfiguration {
         self.applicationName = applicationName
         self.postgresConfiguration = postgresConfiguration
         self.connectTimeout = connectTimeout.atLeast(1.0)
+        self.connectionRetryInterval = connectionRetryInterval.atLeast(0.0)
         self.queryTimeout = queryTimeout?.atLeast(1.0)
         self.poolSize = poolSize.atLeast(1)
         self.maxIdleConnections = maxIdleConnections?.atLeast(0)
