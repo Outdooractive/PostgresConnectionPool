@@ -562,13 +562,16 @@ public actor PostgresConnectionPool {
                     // TODO: Check which of these errors is actually fatal
                     switch PostgresError.Code(raw: code) {
                     case .adminShutdown,
-                         .cannotConnectNow,
                          .invalidAuthorizationSpecification,
                          .invalidName,
                          .invalidPassword:
                         logger.error(logMessage)
                         await shutdown(withError: psqlError)
                         return
+
+                    case .cannotConnectNow:
+                        let delay = UInt64(connectionRetryInterval * 1_000_000_000)
+                        try? await Task<Never, Never>.sleep(nanoseconds: delay)
 
                     default:
                         break
