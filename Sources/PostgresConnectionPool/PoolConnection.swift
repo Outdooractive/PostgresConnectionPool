@@ -2,13 +2,14 @@
 //  Created by Thomas Rasch on 01.04.22.
 //
 
+import Atomics
 import Foundation
 import PostgresNIO
 
 final class PoolConnection: Identifiable, Equatable {
 
-    // TODO: Serialize access
-    private(set) static var connectionId = 0
+    // For connection ids
+    private static let atomic: ManagedAtomic<Int> = .init(0)
 
     private(set) var usageCounter = 0
 
@@ -36,9 +37,7 @@ final class PoolConnection: Identifiable, Equatable {
     }
 
     init() {
-        self.id = PoolConnection.connectionId
-
-        PoolConnection.connectionId += 1
+        self.id = PoolConnection.atomic.loadThenWrappingIncrement(by: 1, ordering: .relaxed)
     }
 
     static func == (lhs: PoolConnection, rhs: PoolConnection) -> Bool {
