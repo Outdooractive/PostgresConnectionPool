@@ -5,7 +5,7 @@
 import Foundation
 
 /// The possible states of a database connection.
-public enum PoolConnectionState: Equatable {
+public enum PoolConnectionState: Equatable, Sendable {
 
     /// The connection is in use.
     case active(Date)

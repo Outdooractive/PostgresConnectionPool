@@ -6,10 +6,10 @@ import Foundation
 import PostgresNIO
 
 /// General information about the pool and its open connections.
-public struct PoolInfo {
+public struct PoolInfo: Sendable {
 
     /// Information about an open connection.
-    public struct ConnectionInfo {
+    public struct ConnectionInfo: Sendable {
         /// The unique connection id.
         public let id: Int
         /// The connection name on the server.

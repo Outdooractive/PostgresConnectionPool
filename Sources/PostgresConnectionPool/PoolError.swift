@@ -6,7 +6,7 @@ import Foundation
 import PostgresNIO
 
 /// Possible errors from the connection pool.
-public enum PoolError: Error {
+public enum PoolError: Error, Sendable {
 
     /// The request was cancelled.
     case cancelled

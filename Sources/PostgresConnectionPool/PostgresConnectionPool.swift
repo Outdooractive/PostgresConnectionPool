@@ -263,7 +263,7 @@ public actor PostgresConnectionPool {
             return PoolInfo.ConnectionInfo(
                 id: connection.id,
                 name: nameForConnection(id: connection.id),
-                usageCounter: connection.usageCounter,
+                usageCounter: connection.usageCounter.load(ordering: .relaxed),
                 batchId: connection.batchId,
                 query: connection.query,
                 queryRuntime: connection.queryRuntime,
@@ -323,7 +323,7 @@ public actor PostgresConnectionPool {
                 || (connection.state != .connecting && connection.connection?.isClosed ?? false)
         })
 
-        let usageCounter = connections.reduce(0) { $0 + $1.usageCounter }
+        let usageCounter = connections.reduce(0) { $0 + $1.usageCounter.load(ordering: .relaxed) }
         logger.debug("[\(poolName)] \(connections.count) connections (\(available.count) available, \(usageCounter) queries), \(continuations.count) continuations left")
 
         // Check for waiting continuations and open a new connection if possible

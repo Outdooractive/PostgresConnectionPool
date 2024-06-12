@@ -9,9 +9,9 @@ import PostgresNIO
 final class PoolConnection: Identifiable, Equatable {
 
     // For connection ids
-    private static let atomic: ManagedAtomic<Int> = .init(0)
+    private static let connectionId: ManagedAtomic<Int> = .init(0)
 
-    private(set) var usageCounter = 0
+    let usageCounter: ManagedAtomic<Int> = .init(0)
 
     let id: Int
     var batchId: Int?
@@ -20,7 +20,7 @@ final class PoolConnection: Identifiable, Equatable {
     var state: PoolConnectionState = .connecting {
         didSet {
             if case .active = state {
-                usageCounter += 1
+                usageCounter.wrappingIncrement(by: 1, ordering: .relaxed)
             }
         }
     }
@@ -37,7 +37,7 @@ final class PoolConnection: Identifiable, Equatable {
     }
 
     init() {
-        self.id = PoolConnection.atomic.loadThenWrappingIncrement(by: 1, ordering: .relaxed)
+        self.id = PoolConnection.connectionId.loadThenWrappingIncrement(by: 1, ordering: .relaxed)
     }
 
     static func == (lhs: PoolConnection, rhs: PoolConnection) -> Bool {

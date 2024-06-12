@@ -6,7 +6,7 @@ import Foundation
 import PostgresNIO
 
 /// Settings for the pool like connection parameters.
-public struct PoolConfiguration {
+public struct PoolConfiguration: Sendable {
 
     /// PostgreSQL connection parameters.
     @available(*, deprecated, message: "Use `PostgresConnection.Configuration` etc. instead.")
@@ -57,15 +57,15 @@ public struct PoolConfiguration {
     /// Called when new connections to the database are openend.
     ///
     /// Use this to set extra connection options or override the defaults.
-    public var onOpenConnection: ((PostgresConnection, Logger) async throws -> Void)?
+    public let onOpenConnection: (@Sendable (PostgresConnection, Logger) async throws -> Void)?
 
     /// Called before a connection is given to a client.
     ///
     /// Default is to do a quick connection check with "SELECT 1" and close the connection on errors.
-    public var onReturnConnection: ((PostgresConnection, Logger) async throws -> Void)?
+    public let onReturnConnection: (@Sendable (PostgresConnection, Logger) async throws -> Void)?
 
     /// Called just before a connection is being closed.
-    public var onCloseConnection: ((PostgresConnection, Logger) async throws -> Void)?
+    public let onCloseConnection: (@Sendable (PostgresConnection, Logger) async throws -> Void)?
 
     /// Pool configuation.
     ///
@@ -76,6 +76,9 @@ public struct PoolConfiguration {
     ///   - queryTimeout: TImeout for individual database queries
     ///   - poolSize: The maximum number of open connections
     ///   - maxIdleConnections: The maximum number of idle connections
+    ///   - onOpenConnection: Called when new connections to the database are openend
+    ///   - onReturnConnection: Called before a connection is given to a client
+    ///   - onCloseConnection: Called just before a connection is being closed
     public init(
         applicationName: String,
         postgresConfiguration: PostgresConnection.Configuration,
@@ -83,7 +86,10 @@ public struct PoolConfiguration {
         connectionRetryInterval: TimeInterval = 0.5,
         queryTimeout: TimeInterval? = nil,
         poolSize: Int = 10,
-        maxIdleConnections: Int? = nil)
+        maxIdleConnections: Int? = nil,
+        onOpenConnection: (@Sendable (PostgresConnection, Logger) async throws -> Void)? = nil,
+        onReturnConnection: (@Sendable (PostgresConnection, Logger) async throws -> Void)? = nil,
+        onCloseConnection: (@Sendable (PostgresConnection, Logger) async throws -> Void)? = nil)
     {
         self.applicationName = applicationName
         self.postgresConfiguration = postgresConfiguration
@@ -93,9 +99,11 @@ public struct PoolConfiguration {
         self.poolSize = poolSize.atLeast(1)
         self.maxIdleConnections = maxIdleConnections?.atLeast(0)
 
-        self.onReturnConnection = { connection, logger in
+        self.onOpenConnection = onOpenConnection
+        self.onReturnConnection = onReturnConnection ?? { connection, logger in
             try await connection.query("SELECT 1", logger: logger)
         }
+        self.onCloseConnection = onCloseConnection
     }
 
     @available(*, deprecated, message: "Use `init(applicationName:postgresConfiguration:connectTimeout:queryTimeout:poolSize:maxIdleConnections:)` instead.")

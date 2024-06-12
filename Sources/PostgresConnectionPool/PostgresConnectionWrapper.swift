@@ -89,12 +89,13 @@ public final class PostgresConnectionWrapper {
     }
 
     public func sql(
-        encoder: PostgresDataEncoder = PostgresDataEncoder(),
-        decoder: PostgresDataDecoder = PostgresDataDecoder())
-        -> SQLDatabase
+        encodingContext: PostgresEncodingContext<some PostgresJSONEncoder> = .default,
+        decodingContext: PostgresDecodingContext<some PostgresJSONDecoder> = .default,
+        queryLogLevel: Logger.Level? = .debug)
+        -> some SQLDatabase
     {
         // TODO: Track the current query
-        postgresConnection.sql(encoder: encoder, decoder: decoder)
+        postgresConnection.sql(encodingContext: encodingContext, decodingContext: decodingContext, queryLogLevel: queryLogLevel)
     }
 
     /// Add a handler for NotificationResponse messages on a certain channel.
@@ -105,11 +106,17 @@ public final class PostgresConnectionWrapper {
     @discardableResult
     public func addListener(
         channel: String,
-        handler notificationHandler: @escaping (PostgresListenContext, PostgresMessage.NotificationResponse) -> Void)
+        handler notificationHandler: @Sendable @escaping (PostgresListenContext, PostgresMessage.NotificationResponse) -> Void)
         -> PostgresListenContext
     {
         poolConnection.query = "LISTEN \(channel)"
         return postgresConnection.addListener(channel: channel, handler: notificationHandler)
+    }
+
+    /// Start listening for a channel
+    public func listen(_ channel: String) async throws -> PostgresNotificationSequence {
+        poolConnection.query = "LISTEN \(channel)"
+        return try await postgresConnection.listen(channel)
     }
 
 }

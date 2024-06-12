@@ -7,15 +7,20 @@ import PostgresNIO
 
 // MARK: CustomStringConvertible
 
-extension PSQLError: CustomStringConvertible {
+extension PSQLError {
 
     /// A short error description.
-    public var description: String {
+    public var pgPoolDescription: String {
         if let serverInfo = self.serverInfo,
            let severity = serverInfo[.severity],
            let message = serverInfo[.message]
         {
-            return "<PSQLError: \(severity): \(message)>"
+            if let code = serverInfo[.sqlState] {
+                return "<PSQLError (code \(code)): \(severity): \(message)>"
+            }
+            else {
+                return "<PSQLError: \(severity): \(message)>"
+            }
         }
 
         return "<PSQLError: \(self.code.description)>"
@@ -25,10 +30,10 @@ extension PSQLError: CustomStringConvertible {
 
 // MARK: - CustomDebugStringConvertible
 
-extension PSQLError: CustomDebugStringConvertible {
+extension PSQLError {
 
     /// A detailed error description suitable for debugging queries and other problems with the server.
-    public var debugDescription: String {
+    public var pgPoolDebugDescription: String {
         var messageElements: [String] = [
             "code: \(self.code)"
         ]
