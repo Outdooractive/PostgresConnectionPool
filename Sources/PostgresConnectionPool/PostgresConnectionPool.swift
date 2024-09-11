@@ -82,9 +82,11 @@ public actor PostgresConnectionPool {
         self.postgresConfiguration = postgresConfiguration
     }
 
-//    deinit {
-//        assert(didShutdown, "Must call shutdown() before releasing a PostgresConnectionPool")
-//    }
+    deinit {
+        Task { [isShutdown] in
+            assert(isShutdown, "Must call shutdown() before releasing a PostgresConnectionPool")
+        }
+    }
 
     /// Takes one connection from the pool and dishes it out to the caller.
     ///

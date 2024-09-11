@@ -7,7 +7,7 @@ import PostgresNIO
 
 typealias PostgresCheckedContinuation = CheckedContinuation<PoolConnection, Error>
 
-final class PoolContinuation {
+final class PoolContinuation: Sendable {
 
     let added: Date
     let batchId: Int?
