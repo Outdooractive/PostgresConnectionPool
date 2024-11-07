@@ -96,7 +96,7 @@ public actor PostgresConnectionPool {
     @discardableResult
     public func connection<T>(
         batchId: Int? = nil,
-        _ callback: (PostgresConnectionWrapper) async throws -> T)
+        _ callback: @Sendable (PostgresConnectionWrapper) async throws -> T)
         async throws -> T
     {
         var poolConnection: PoolConnection?
