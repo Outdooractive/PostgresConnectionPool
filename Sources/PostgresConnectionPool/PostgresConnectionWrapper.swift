@@ -7,7 +7,7 @@ import PostgresKit
 import PostgresNIO
 
 /// A wrapper around a postgres connection.
-public final class PostgresConnectionWrapper {
+public final class PostgresConnectionWrapper: Sendable {
 
     private let poolConnection: PoolConnection
     private let postgresConnection: PostgresConnection
