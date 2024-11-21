@@ -13,16 +13,17 @@ public actor PostgresConnectionPool {
     private static let healthCheckInterval: TimeInterval = 5.0
     private static let idleConnectionsCheckInterval: TimeInterval = 60.0
 
-    private let logger: Logger
     private let eventLoopGroup: EventLoopGroup
 
-    private let postgresConfiguration: PostgresConnection.Configuration
-    private let connectionName: String
-    private let poolName: String
-    private let poolSize: Int
-    private let connectionRetryInterval: TimeInterval
-    private let maxIdleConnections: Int?
-    private let queryTimeout: TimeInterval?
+    public let logger: Logger
+    public let postgresConfiguration: PostgresConnection.Configuration
+    public let connectionName: String
+    public let poolName: String
+    public let poolSize: Int
+
+    public let connectionRetryInterval: TimeInterval
+    public let maxIdleConnections: Int?
+    public let queryTimeout: TimeInterval?
 
     private let onOpenConnection: ((PostgresConnection, Logger) async throws -> Void)?
     private let onReturnConnection: ((PostgresConnection, Logger) async throws -> Void)?
