@@ -6,7 +6,7 @@ import Atomics
 import Foundation
 import PostgresNIO
 
-final class PoolConnection: Identifiable, Equatable {
+final class PoolConnection: Identifiable, Equatable, @unchecked Sendable {
 
     // For connection ids
     private static let connectionId: ManagedAtomic<Int> = .init(0)

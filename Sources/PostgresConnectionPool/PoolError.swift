@@ -5,21 +5,28 @@
 import Foundation
 import PostgresNIO
 
-/// Possible errors from the connection pool.
+/// Errors thrown by ``PostgresConnectionPool``.
 public enum PoolError: Error, Sendable {
 
     /// The request was cancelled.
     case cancelled
+
     /// The connection to the database was unexpectedly closed.
     case connectionFailed
-    /// The pool was already shut down. Includes the original `PSQLError`
-    /// if the pool was shutdown due to a permanent server error.
+
+    /// The pool was already shut down.
+    ///
+    /// Contains the original ``PSQLError`` if the pool was shut down due to a
+    /// permanent server error.
     case poolDestroyed(PSQLError?)
-    /// Some PostgreSQL error.
+
+    /// A PostgreSQL error occurred during query execution.
     case postgresError(PSQLError)
+
     /// The query was cancelled by the server.
     case queryCancelled(query: String, runtime: Double)
-    /// Something unexpected happened.
+
+    /// An unexpected error occurred.
     case unknown
 
 }

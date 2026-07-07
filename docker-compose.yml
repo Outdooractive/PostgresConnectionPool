@@ -1,5 +1,3 @@
-version: '3.7'
-
 x-shared-config: &shared_config
   environment:
     POSTGRES_HOST_AUTH_METHOD: "${POSTGRES_HOST_AUTH_METHOD:-scram-sha-256}"

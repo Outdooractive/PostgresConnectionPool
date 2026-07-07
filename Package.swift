@@ -1,20 +1,20 @@
-// swift-tools-version:5.10
+// swift-tools-version:6.3
 
 import PackageDescription
 
 let package = Package(
     name: "PostgresConnectionPool",
     platforms: [
-        .macOS(.v13),
+        .macOS(.v15),
     ],
     products: [
         .library(name: "PostgresConnectionPool", targets: ["PostgresConnectionPool"]),
     ],
     dependencies: [
-        .package(url: "https://github.com/apple/swift-atomics.git", from: "1.2.0"),
-        .package(url: "https://github.com/apple/swift-collections", from: "1.1.1"),
-        .package(url: "https://github.com/vapor/postgres-nio.git", from: "1.21.4"),
-        .package(url: "https://github.com/vapor/postgres-kit", from: "2.13.5"),
+        .package(url: "https://github.com/apple/swift-atomics.git", from: "1.3.1"),
+        .package(url: "https://github.com/apple/swift-collections", from: "1.6.0"),
+        .package(url: "https://github.com/vapor/postgres-nio.git", from: "1.33.0"),
+        .package(url: "https://github.com/vapor/postgres-kit", from: "2.15.1"),
     ],
     targets: [
         .target(

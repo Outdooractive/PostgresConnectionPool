@@ -13,7 +13,9 @@ final class PoolContinuation: Sendable {
     let batchId: Int?
     let continuation: PostgresCheckedContinuation
 
-    init(batchId: Int?, continuation: PostgresCheckedContinuation) {
+    init(batchId: Int?,
+         continuation: PostgresCheckedContinuation
+    ) {
         self.added = Date()
         self.batchId = batchId
         self.continuation = continuation

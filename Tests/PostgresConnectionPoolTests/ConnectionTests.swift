@@ -4,56 +4,51 @@
 
 @testable import PostgresConnectionPool
 import PostgresNIO
-import XCTest
+import Testing
 
-final class ConnectionTests: XCTestCase {
+@Suite("Connection Tests", .serialized)
+struct ConnectionTests {
 
-    private var logger: Logger = {
+    private let logger: Logger = {
         var logger = Logger(label: "ConnectionTests")
         logger.logLevel = .info
         return logger
     }()
 
-    // MARK: -
-
-    // Test that the pool can actually connect to the server.
+    @Test("Can connect and execute a query")
     func testCanConnect() async throws {
         let pool = PostgresConnectionPool(configuration: PostgresHelpers.poolConfiguration(), logger: logger)
 
-        do {
-            try await pool.connection { connection in
-                try await connection.query("SELECT 1", logger: logger)
-            }
-            await pool.shutdown()
+        try await pool.connection { connection in
+            try await connection.query("SELECT 1", logger: logger)
         }
-        catch {
-            XCTFail("Is the cocker container running? (\(String(describing: (error as? PoolError)?.debugDescription))")
-        }
+        await pool.shutdown()
 
         let didShutdown = await pool.isShutdown
-        XCTAssertTrue(didShutdown)
+        #expect(didShutdown)
     }
 
+    @Test("Pool info reflects state correctly")
     func testPoolInfo() async throws {
         let pool = PostgresConnectionPool(configuration: PostgresHelpers.poolConfiguration(), logger: logger)
 
         let poolInfoBefore = await pool.poolInfo()
         print(poolInfoBefore)
-        XCTAssertEqual(poolInfoBefore.activeConnections, 0)
-        XCTAssertEqual(poolInfoBefore.availableConnections, 0)
-        XCTAssertEqual(poolInfoBefore.openConnections, 0)
-        XCTAssertEqual(poolInfoBefore.connections.count, poolInfoBefore.openConnections)
-        XCTAssertFalse(poolInfoBefore.isShutdown)
-        XCTAssertNil(poolInfoBefore.shutdownError)
+        #expect(poolInfoBefore.activeConnections == 0)
+        #expect(poolInfoBefore.availableConnections == 0)
+        #expect(poolInfoBefore.openConnections == 0)
+        #expect(poolInfoBefore.connections.count == poolInfoBefore.openConnections)
+        #expect(!poolInfoBefore.isShutdown)
+        #expect(poolInfoBefore.shutdownError == nil)
 
         let start = 1
         let end = 1000
 
-        await withThrowingTaskGroup(of: Void.self) { taskGroup in
+        try await withThrowingDiscardingTaskGroup { taskGroup in
             for _ in 1 ... 1000 {
                 taskGroup.addTask {
                     try await pool.connection { connection in
-                        _ = try await connection.query("SELECT generate_series(\(start), \(end));", logger: self.logger)
+                        _ = try await connection.query("SELECT generate_series(\(start), \(end));", logger: logger)
                     }
                 }
             }
@@ -61,58 +56,59 @@ final class ConnectionTests: XCTestCase {
 
         let poolInfo = await pool.poolInfo()
         print(poolInfo)
-        XCTAssertEqual(poolInfo.activeConnections, 0)
-        XCTAssertGreaterThan(poolInfo.availableConnections, 0)
-        XCTAssertGreaterThan(poolInfo.openConnections, 0)
-        XCTAssertEqual(poolInfo.connections.count, poolInfo.openConnections)
-        XCTAssertFalse(poolInfo.isShutdown)
-        XCTAssertNil(poolInfo.shutdownError)
+        #expect(poolInfo.activeConnections == 0)
+        #expect(poolInfo.availableConnections > 0)
+        #expect(poolInfo.openConnections > 0)
+        #expect(poolInfo.connections.count == poolInfo.openConnections)
+        #expect(!poolInfo.isShutdown)
+        #expect(poolInfo.shutdownError == nil)
 
         await pool.shutdown()
 
         let poolInfoAfterShutdown = await pool.poolInfo()
         print(poolInfoAfterShutdown)
-        XCTAssertEqual(poolInfoAfterShutdown.activeConnections, 0)
-        XCTAssertEqual(poolInfoAfterShutdown.availableConnections, 0)
-        XCTAssertEqual(poolInfoAfterShutdown.openConnections, 0)
-        XCTAssertEqual(poolInfoAfterShutdown.connections.count, 0)
-        XCTAssertTrue(poolInfoAfterShutdown.isShutdown)
-        XCTAssertNil(poolInfoAfterShutdown.shutdownError)
+        #expect(poolInfoAfterShutdown.activeConnections == 0)
+        #expect(poolInfoAfterShutdown.availableConnections == 0)
+        #expect(poolInfoAfterShutdown.openConnections == 0)
+        #expect(poolInfoAfterShutdown.connections.count == 0)
+        #expect(poolInfoAfterShutdown.isShutdown)
+        #expect(poolInfoAfterShutdown.shutdownError == nil)
     }
 
+    @Test("Pool with 100 connections handles 10000 queries")
     func testPoolSize100() async throws {
         let pool = PostgresConnectionPool(configuration: PostgresHelpers.poolConfiguration(poolSize: 100), logger: logger)
 
         let start = 1
         let end = 100
 
-        await withThrowingTaskGroup(of: Void.self) { taskGroup in
+        try await withThrowingDiscardingTaskGroup { taskGroup in
             for _ in 1 ... 10000 {
                 taskGroup.addTask {
                     try await pool.connection { connection in
-                        _ = try await connection.query("SELECT generate_series(\(start), \(end));", logger: self.logger)
+                        _ = try await connection.query("SELECT generate_series(\(start), \(end));", logger: logger)
                     }
                 }
             }
         }
 
         let poolInfo = await pool.poolInfo()
-        XCTAssertEqual(poolInfo.activeConnections, 0)
-        XCTAssertGreaterThan(poolInfo.availableConnections, 0)
-        XCTAssertGreaterThan(poolInfo.openConnections, 0)
-        XCTAssertEqual(poolInfo.connections.count, poolInfo.openConnections)
-        XCTAssertFalse(poolInfo.isShutdown)
-        XCTAssertNil(poolInfo.shutdownError)
+        #expect(poolInfo.activeConnections == 0)
+        #expect(poolInfo.availableConnections > 0)
+        #expect(poolInfo.openConnections > 0)
+        #expect(poolInfo.connections.count == poolInfo.openConnections)
+        #expect(!poolInfo.isShutdown)
+        #expect(poolInfo.shutdownError == nil)
 
         await pool.closeIdleConnections()
 
         let poolInfoIdleClosed = await pool.poolInfo()
-        XCTAssertEqual(poolInfoIdleClosed.activeConnections, 0)
-        XCTAssertEqual(poolInfoIdleClosed.availableConnections, 0)
-        XCTAssertEqual(poolInfoIdleClosed.openConnections, 0)
-        XCTAssertEqual(poolInfoIdleClosed.connections.count, poolInfoIdleClosed.openConnections)
-        XCTAssertFalse(poolInfoIdleClosed.isShutdown)
-        XCTAssertNil(poolInfoIdleClosed.shutdownError)
+        #expect(poolInfoIdleClosed.activeConnections == 0)
+        #expect(poolInfoIdleClosed.availableConnections == 0)
+        #expect(poolInfoIdleClosed.openConnections == 0)
+        #expect(poolInfoIdleClosed.connections.count == poolInfoIdleClosed.openConnections)
+        #expect(!poolInfoIdleClosed.isShutdown)
+        #expect(poolInfoIdleClosed.shutdownError == nil)
 
         await pool.shutdown()
     }

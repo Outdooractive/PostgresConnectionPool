@@ -15,9 +15,8 @@ enum PostgresHelpers {
         password: String? = nil,
         database: String? = nil,
         tls: PostgresConnection.Configuration.TLS = .disable,
-        poolSize: Int = 5)
-        -> PoolConfiguration
-    {
+        poolSize: Int = 5
+    ) -> PoolConfiguration {
         let postgresConfiguration = PostgresConnection.Configuration(
             host: host ?? env("POSTGRES_HOSTNAME") ?? "localhost",
             port: port ?? env("POSTGRES_PORT").flatMap(Int.init(_:)) ?? 5432,
