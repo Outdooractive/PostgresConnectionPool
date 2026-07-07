@@ -23,7 +23,12 @@ extension PSQLError {
             }
         }
 
-        return "<PSQLError: \(self.code.description)>"
+        if let underlying = self.underlying {
+            return "<PSQLError: \(self.code.description) (\(underlying))>"
+        }
+        else {
+            return "<PSQLError: \(self.code.description)>"
+        }
     }
 
 }

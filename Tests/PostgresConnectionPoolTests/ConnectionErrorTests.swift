@@ -4,50 +4,57 @@
 
 import PostgresConnectionPool
 import PostgresNIO
-import XCTest
+import Testing
 
-final class ConnectionErrorTests: XCTestCase {
+@Suite("Connection Error Tests", .serialized)
+struct ConnectionErrorTests {
 
-    private var logger: Logger = {
+    private let logger: Logger = {
         var logger = Logger(label: "ConnectionErrorTests")
         logger.logLevel = .info
         return logger
     }()
 
-    // MARK: -
-
-    // TODO: Clean up the error checking
-    // TODO: Check that the Docker PostgreSQL server is actually up and available first or most tests will fail anyway
-
+    @Test("Wrong host fails with connectionError")
     func testConnectWrongHost() async throws {
-        try await withConfiguration(PostgresHelpers.poolConfiguration(host: "notworking"), expectedErrorDescription: "<PSQLError: connectionError>")
+        try await withConfiguration(PostgresHelpers.poolConfiguration(host: "notworking"), expectedErrorCode: "connectionError")
     }
 
+    @Test("Wrong port fails with connectionError")
     func testConnectWrongPort() async throws {
-        try await withConfiguration(PostgresHelpers.poolConfiguration(port: 99999), expectedErrorDescription: "<PSQLError: connectionError>")
+        try await withConfiguration(PostgresHelpers.poolConfiguration(port: 99999), expectedErrorCode: "connectionError")
     }
 
+    @Test("Wrong username fails with password auth error")
     func testConnectWrongUsername() async throws {
-        try await withConfiguration(PostgresHelpers.poolConfiguration(username: "notworking"), expectedErrorDescription: "<PSQLError: FATAL: password authentication failed for user \"notworking\">")
+        try await withConfiguration(PostgresHelpers.poolConfiguration(username: "notworking")) { error in
+            #expect(error.pgPoolDescription == "<PSQLError (code 28P01): FATAL: password authentication failed for user \"notworking\">")
+        }
     }
 
+    @Test("Wrong password fails with password auth error")
     func testConnectWrongPassword() async throws {
-        try await withConfiguration(PostgresHelpers.poolConfiguration(password: "notworking"), expectedErrorDescription: "<PSQLError: FATAL: password authentication failed for user \"test_username\">")
+        try await withConfiguration(PostgresHelpers.poolConfiguration(password: "notworking")) { error in
+            #expect(error.pgPoolDescription == "<PSQLError (code 28P01): FATAL: password authentication failed for user \"test_username\">")
+        }
     }
 
+    @Test("Invalid TLS config fails with sslUnsupported")
     func testConnectInvalidTLSConfig() async throws {
         var tlsConfiguration: TLSConfiguration = .clientDefault
-        tlsConfiguration.maximumTLSVersion = .tlsv1 // New Postgres versions want at least TLSv1.2
+        tlsConfiguration.maximumTLSVersion = .tlsv1
 
         let tls: PostgresConnection.Configuration.TLS = .require(try .init(configuration: tlsConfiguration))
-        try await withConfiguration(PostgresHelpers.poolConfiguration(tls: tls), expectedErrorDescription: "<PSQLError: sslUnsupported>")
+        try await withConfiguration(PostgresHelpers.poolConfiguration(tls: tls)) { error in
+            #expect(error.pgPoolDescription == "<PSQLError: sslUnsupported>")
+        }
     }
 
     // MARK: -
 
     private func withConfiguration(
         _ configuration: PoolConfiguration,
-        expectedErrorDescription: String)
+        expectedErrorCode: String)
         async throws
     {
         let pool = PostgresConnectionPool(configuration: configuration, logger: logger)
@@ -58,17 +65,48 @@ final class ConnectionErrorTests: XCTestCase {
             }
             await pool.shutdown()
 
-            XCTFail("Can't connect, so we should have an exception here")
+            Issue.record("Can't connect, so we should have an error here")
         }
         catch {
-            XCTAssertTrue(error is PoolError)
+            #expect(error is PoolError)
 
             let shutdownError = await pool.shutdownError
-            XCTAssertEqual(shutdownError?.description, expectedErrorDescription)
+            let errorDescription = shutdownError?.pgPoolDescription ?? ""
+            #expect(errorDescription.hasPrefix("<PSQLError: \(expectedErrorCode)"))
         }
 
         let didShutdown = await pool.isShutdown
-        XCTAssertTrue(didShutdown)
+        #expect(didShutdown)
+    }
+
+    private func withConfiguration(
+        _ configuration: PoolConfiguration,
+        verify: (PSQLError) -> Void)
+        async throws
+    {
+        let pool = PostgresConnectionPool(configuration: configuration, logger: logger)
+
+        do {
+            try await pool.connection { connection in
+                try await connection.query("SELECT 1", logger: logger)
+            }
+            await pool.shutdown()
+
+            Issue.record("Can't connect, so we should have an error here")
+        }
+        catch {
+            #expect(error is PoolError)
+
+            if let shutdownError = await pool.shutdownError {
+                verify(shutdownError)
+            }
+            else {
+                Issue.record("Expected shutdownError to be set")
+            }
+        }
+
+        let didShutdown = await pool.isShutdown
+        #expect(didShutdown)
     }
 
 }

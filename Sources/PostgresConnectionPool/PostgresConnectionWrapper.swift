@@ -6,7 +6,12 @@ import Foundation
 import PostgresKit
 import PostgresNIO
 
-/// A wrapper around a postgres connection.
+/// A thread-safe handle to a pooled PostgreSQL connection.
+///
+/// ``PostgresConnectionWrapper`` is received inside the callback passed to
+/// ``PostgresConnectionPool/connection(batchId:_:)``. It forwards query
+/// execution and listen/notify operations to the underlying ``PostgresConnection``
+/// while tracking query runtimes for diagnostics.
 public final class PostgresConnectionWrapper: Sendable {
 
     private let poolConnection: PoolConnection
@@ -14,9 +19,8 @@ public final class PostgresConnectionWrapper: Sendable {
 
     static func distribute<T>(
         poolConnection: PoolConnection?,
-        callback: (PostgresConnectionWrapper) async throws -> T)
-        async throws -> T
-    {
+        callback: (PostgresConnectionWrapper) async throws -> T
+    ) async throws -> T {
         guard let poolConnection,
               let connectionWrapper = PostgresConnectionWrapper(poolConnection)
         else { throw PoolError.unknown }
@@ -57,66 +61,95 @@ public final class PostgresConnectionWrapper: Sendable {
 
     // MARK: - Public interface, from PostgresConnection
 
-    /// The database logger.
+    /// The database logger associated with this connection.
     public var logger: Logger {
         postgresConnection.logger
     }
 
-    /// if the connection is closed (which would be an error).
+    /// Whether the underlying Postgres connection has been closed.
     public var isClosed: Bool {
         postgresConnection.isClosed
     }
 
-    /// Run a query on the Postgres server the connection is connected to.
+    /// Executes a query on the PostgreSQL server.
+    ///
+    /// The query text is tracked for diagnostic purposes and can be inspected via
+    /// ``PoolInfo/ConnectionInfo/query`` and ``PoolInfo/ConnectionInfo/queryRuntime``.
     ///
     /// - Parameters:
-    ///   - query: The ``PostgresQuery`` to run
-    ///   - logger: The `Logger` to log into for the query
-    ///   - file: The file, the query was started in. Used for better error reporting.
-    ///   - line: The line, the query was started in. Used for better error reporting.
-    /// - Returns: A ``PostgresRowSequence`` containing the rows the server sent as the query result.
-    ///            The sequence can  be discarded.
+    ///   - query: The ``PostgresQuery`` to execute.
+    ///   - logger: The logger to use for query-level logging.
+    ///   - file: Source file of the call site (for error reporting).
+    ///   - line: Source line of the call site (for error reporting).
+    /// - Returns: A ``PostgresRowSequence`` containing the result rows.
     @discardableResult
     public func query(
         _ query: PostgresQuery,
         logger: Logger,
         file: String = #fileID,
-        line: Int = #line)
-        async throws -> PostgresRowSequence
-    {
+        line: Int = #line
+    ) async throws -> PostgresRowSequence {
         poolConnection.query = query.sql
         return try await postgresConnection.query(query, logger: logger, file: file, line: line)
     }
 
+    /// Returns a ``SQLDatabase``-conforming wrapper for use with PostgresKit.
+    ///
+    /// - Parameters:
+    ///   - encodingContext: The JSON encoding context.
+    ///   - decodingContext: The JSON decoding context.
+    ///   - queryLogLevel: The log level for query logging.
+    /// - Returns: A ``SQLDatabase`` for executing queries via PostgresKit.
     public func sql(
         encodingContext: PostgresEncodingContext<some PostgresJSONEncoder> = .default,
         decodingContext: PostgresDecodingContext<some PostgresJSONDecoder> = .default,
-        queryLogLevel: Logger.Level? = .debug)
-        -> some SQLDatabase
-    {
-        // TODO: Track the current query
+        queryLogLevel: Logger.Level? = .debug
+    ) -> some SQLDatabase {
         postgresConnection.sql(encodingContext: encodingContext, decodingContext: decodingContext, queryLogLevel: queryLogLevel)
     }
 
-    /// Add a handler for NotificationResponse messages on a certain channel.
+    /// Registers a handler for `NOTIFY` messages on a channel.
     ///
-    /// This is used in conjunction with PostgreSQL's `LISTEN`/`NOTIFY` support:
-    /// to listen on a channel, you add a listener using this method to handle the NotificationResponse messages,
-    /// then issue a `LISTEN` query to instruct PostgreSQL to begin sending NotificationResponse messages.
+    /// Use this in conjunction with PostgreSQL's `LISTEN`/`NOTIFY` support.
+    /// After adding a listener, issue a `LISTEN` query to begin receiving notifications.
+    ///
+    /// - Parameters:
+    ///   - channel: The channel name to listen on.
+    ///   - notificationHandler: A closure invoked when a notification is received.
+    /// - Returns: A ``PostgresListenContext`` that can be used to stop listening.
     @discardableResult
     public func addListener(
         channel: String,
-        handler notificationHandler: @Sendable @escaping (PostgresListenContext, PostgresMessage.NotificationResponse) -> Void)
-        -> PostgresListenContext
-    {
+        handler notificationHandler: @Sendable @escaping (PostgresListenContext, PostgresMessage.NotificationResponse) -> Void
+    ) -> PostgresListenContext {
         poolConnection.query = "LISTEN \(channel)"
         return postgresConnection.addListener(channel: channel, handler: notificationHandler)
     }
 
-    /// Start listening for a channel
-    public func listen(_ channel: String) async throws -> PostgresNotificationSequence {
+    /// Start listening for a channel.
+    ///
+    /// - Parameter channel: The channel name to listen on.
+    /// - Returns: An async sequence of ``PostgresMessage/NotificationResponse`` events.
+    public func listen(
+        _ channel: String
+    ) async throws -> PostgresNotificationSequence {
         poolConnection.query = "LISTEN \(channel)"
-        return try await postgresConnection.listen(channel)
+        return try await postgresConnection.listen(on: channel) { $0 }
+    }
+
+    /// Listen on a channel and consume notifications via the given closure.
+    ///
+    /// - Parameters:
+    ///   - channel: The channel name to listen on.
+    ///   - consume: A closure that receives the notification sequence and processes it.
+    /// - Returns: The value returned by the consume closure.
+    @discardableResult
+    public func listen<Value>(
+        on channel: String,
+        consume: (PostgresNotificationSequence) async throws -> Value
+    ) async throws -> Value {
+        poolConnection.query = "LISTEN \(channel)"
+        return try await postgresConnection.listen(on: channel, consume: consume)
     }
 
 }

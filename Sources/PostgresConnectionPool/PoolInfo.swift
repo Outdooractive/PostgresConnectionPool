@@ -5,43 +5,52 @@
 import Foundation
 import PostgresNIO
 
-/// General information about the pool and its open connections.
+/// Diagnostic information about a ``PostgresConnectionPool`` and its connections.
 public struct PoolInfo: Sendable {
 
-    /// Information about an open connection.
+    /// Information about a single open connection in the pool.
     public struct ConnectionInfo: Sendable {
-        /// The unique connection id.
+        /// The unique connection identifier.
         public let id: Int
-        /// The connection name on the server.
+
+        /// The connection display name (as sent to PostgreSQL via `application_name`).
         public let name: String
-        /// Total number of queries that were sent over this connection.
+
+        /// Total number of queries executed on this connection.
         public let usageCounter: Int
-        /// The connection's batch Id.
+
+        /// The optional batch ID associated with this connection.
         public var batchId: Int?
-        /// The current query, if available.
+
+        /// The SQL text of the currently running query, if any.
         public let query: String?
-        /// The current time for the query, if available.
+
+        /// The elapsed time of the currently running query, if any.
         public let queryRuntime: TimeInterval?
-        /// The state of the connection, see ``PoolConnectionState``.
+
+        /// The current state of the connection.
         public let state: PoolConnectionState
     }
 
-    /// The name of the pool which is usually something like the Postgres connection string.
+    /// A human-readable name for the pool (typically the Postgres connection string).
     public let name: String
-    /// The total number of open connections to the server.
+
+    /// The total number of open connections.
     public let openConnections: Int
-    /// The number of connections that are currently in use.
+
+    /// The number of connections currently in use.
     public let activeConnections: Int
-    /// The number of connections that are currently available.
+
+    /// The number of idle connections available for reuse.
     public let availableConnections: Int
 
-    /// Information about individual open connections to the server.
+    /// Detailed information about each open connection.
     public let connections: [ConnectionInfo]
 
-
-    /// Whether the pool is accepting connections or was shutdown.
+    /// Whether the pool has been shut down.
     public let isShutdown: Bool
-    /// The Postgres error If the pool was shutdown forcibly.
+
+    /// The error that caused the pool to shut down, if any.
     public let shutdownError: PSQLError?
 
 }
@@ -54,7 +63,7 @@ extension PoolInfo: CustomStringConvertible {
         var lines: [String] = [
             "Pool: \(name)",
             "  Connections: \(openConnections)/\(activeConnections)/\(availableConnections) (open/active/available)",
-            "  Is shut down? \(isShutdown) \(shutdownError != nil ? "(\(shutdownError!.description))" : "")",
+            "  Is shut down? \(isShutdown) \(shutdownError.map({ "(\($0.description))" }) ?? "")",
         ]
 
         if connections.isNotEmpty {

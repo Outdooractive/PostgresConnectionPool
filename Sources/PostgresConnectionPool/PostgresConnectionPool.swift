@@ -6,7 +6,14 @@ import Collections
 import Foundation
 import PostgresNIO
 
-/// A simple connection pool for PostgreSQL.
+/// A pool of reusable connections to a PostgreSQL database.
+///
+/// The pool manages a configurable number of connections, handles health checks,
+/// idle connection culling, and automatic reconnection on transient errors. All
+/// mutable state is isolated to this actor.
+///
+/// Call ``connection(batchId:_:)`` to acquire a connection, and ``shutdown()``
+/// when the pool is no longer needed.
 public actor PostgresConnectionPool {
 
     private static let postgresMaxNameLength = 32 // PostgreSQL allows 64 but we add some extra info
@@ -15,14 +22,28 @@ public actor PostgresConnectionPool {
 
     private let eventLoopGroup: EventLoopGroup
 
+    /// The logger used by this pool and its connections.
     public let logger: Logger
+
+    /// The underlying ``PostgresConnection/Configuration`` used when opening new connections.
     public let postgresConfiguration: PostgresConnection.Configuration
+
+    /// A sanitized application name sent to PostgreSQL (max 32 characters).
     public let connectionName: String
+
+    /// A human-readable description of the connection target (e.g. `user@host:port/database`).
     public let poolName: String
+
+    /// The maximum number of open connections the pool will maintain.
     public let poolSize: Int
 
+    /// The time to wait before retrying a failed connection attempt.
     public let connectionRetryInterval: TimeInterval
+
+    /// The maximum number of idle connections, or `nil` for unlimited.
     public let maxIdleConnections: Int?
+
+    /// The timeout for individual queries, or `nil` for no timeout.
     public let queryTimeout: TimeInterval?
 
     private let onOpenConnection: ((PostgresConnection, Logger) async throws -> Void)?
@@ -41,9 +62,18 @@ public actor PostgresConnectionPool {
 
     // MARK: -
 
-    /// Initializes and configures a new pool. You should call ``shutdown()``
-    /// when you are done with the pool.
-    public init(configuration: PoolConfiguration, logger: Logger? = nil) {
+    /// Creates a connection pool from the given configuration.
+    ///
+    /// - Parameters:
+    ///   - configuration: The pool configuration including connection parameters and limits.
+    ///   - logger: An optional logger. If `nil`, a default logger is created using the configuration's
+    ///     ``PoolConfiguration/applicationName``.
+    ///
+    /// Call ``shutdown()`` when the pool is no longer needed.
+    public init(
+        configuration: PoolConfiguration,
+        logger: Logger? = nil
+    ) {
         self.logger = logger ?? {
             var logger = Logger(label: configuration.applicationName)
             logger.logLevel = .info
@@ -97,45 +127,50 @@ public actor PostgresConnectionPool {
     @discardableResult
     public func connection<T>(
         batchId: Int? = nil,
-        _ callback: @Sendable (PostgresConnectionWrapper) async throws -> T)
-        async throws -> T
-    {
-        var poolConnection: PoolConnection?
+        _ callback: @Sendable (PostgresConnectionWrapper) async throws -> T
+    ) async throws -> T {
+        let poolConnection: PoolConnection
 
         do {
             poolConnection = try await getConnection(batchId: batchId)
+        }
+        catch {
+            logger.debug("[\(poolName)] Connection error: \(String(reflecting: error))")
+            throw error
+        }
 
-            if Task.isCancelled {
-                await releaseConnection(poolConnection!)
+        if Task.isCancelled {
+            await releaseConnection(poolConnection)
 
-                if let batchId {
-                    await abortBatch(batchId)
-                }
-
-                throw PoolError.cancelled
+            if let batchId {
+                await abortBatch(batchId)
             }
 
+            throw PoolError.cancelled
+        }
+
+        do {
             let result = try await PostgresConnectionWrapper.distribute(
                 poolConnection: poolConnection,
                 callback: callback)
 
-            await releaseConnection(poolConnection!)
+            await releaseConnection(poolConnection)
 
             return result
         }
         catch {
-            if let poolConnection {
-                await releaseConnection(poolConnection)
-            }
+            await releaseConnection(poolConnection)
 
-            logger.debug("[\(poolName)] Connection or query error: \(error)")
+            logger.debug("[\(poolName)] Connection or query error: \(String(reflecting: error))")
 
             throw error
         }
     }
 
     /// Adds a connection placeholder to the list of waiting connections.
-    private func getConnection(batchId: Int? = nil) async throws -> PoolConnection {
+    private func getConnection(
+        batchId: Int? = nil
+    ) async throws -> PoolConnection {
         guard !isShutdown else { throw PoolError.poolDestroyed(shutdownError) }
 
         return try await withCheckedThrowingContinuation({ (continuation: PostgresCheckedContinuation) in
@@ -165,7 +200,13 @@ public actor PostgresConnectionPool {
             // It can happen that the connection is returned before it's being used
             // (e.g. on cancellation)
             connection.state = .available
-            available.append(connection)
+
+            if isShutdown {
+                await closeConnection(connection)
+            }
+            else {
+                available.append(connection)
+            }
         }
         else {
             assert(available.contains(connection), "Connections in state 'available' should be available")
@@ -196,12 +237,10 @@ public actor PostgresConnectionPool {
         }
     }
 
-    /// Releases all resources in the pool and shuts down the event loop.
-    /// All further uses of the pool will throw an error.
+    /// Shuts down the pool, cancelling pending requests and closing all connections.
     ///
-    /// Must be done here because
-    /// a) Swift doesn't yet allow async deinit,
-    /// b) we call this internally on connection errors and need to give the client a chance to react to errors.
+    /// All subsequent uses of the pool will throw ``PoolError/poolDestroyed(_:)``.
+    /// This method must be called before the pool is released.
     public func shutdown() async {
         guard !isShutdown else { return }
 
@@ -237,7 +276,10 @@ public actor PostgresConnectionPool {
         await shutdown()
     }
 
-    /// Forcibly close all idle connections.
+    /// Closes all currently idle (available) connections.
+    ///
+    /// Connections that are in use are not affected. Use this to reduce resource
+    /// consumption during low-activity periods.
     public func closeIdleConnections() async {
         guard !isShutdown else { return }
 
@@ -256,7 +298,10 @@ public actor PostgresConnectionPool {
         })
     }
 
-    /// Information about the pool and its open connections.
+    /// Returns diagnostic information about the pool and its connections.
+    ///
+    /// - Parameter batchId: Optional batch ID filter — only connections with this batch ID are included.
+    /// - Returns: A ``PoolInfo`` struct with connection counts and details.
     public func poolInfo(batchId: Int? = nil) async -> PoolInfo {
         let connections = connections.compactMap { connection -> PoolInfo.ConnectionInfo? in
             if let batchId, connection.batchId != batchId {
@@ -296,7 +341,7 @@ public actor PostgresConnectionPool {
                 try await onCloseConnection(connection, logger)
             }
             catch {
-                logger.warning("[\(poolName)] onCloseConnection error: \(error)")
+                logger.warning("[\(poolName)] onCloseConnection error: \(String(reflecting: error))")
             }
         }
 
@@ -304,7 +349,7 @@ public actor PostgresConnectionPool {
             try await connection.close()
         }
         catch {
-            logger.warning("[\(poolName)] connection.close() error: \(error)")
+            logger.warning("[\(poolName)] connection.close() error: \(String(reflecting: error))")
         }
     }
 
@@ -442,6 +487,7 @@ public actor PostgresConnectionPool {
         catch {
             logger.warning("[\(poolName)] Health check for connection \(poolConnection.id) failed")
 
+            poolContinuation.continuation.resume(throwing: PoolError.connectionFailed)
             await closeConnection(poolConnection)
         }
     }
@@ -489,7 +535,7 @@ public actor PostgresConnectionPool {
                 configuration: postgresConfiguration,
                 id: poolConnection.id,
                 logger: logger)
-            let connectionRuntime = fabs(connectionStartTimestamp.timeIntervalSinceNow)
+            let connectionRuntime = abs(connectionStartTimestamp.timeIntervalSinceNow)
             logger.debug("[\(poolName)] Connection \(poolConnection.id) established in \(connectionRuntime.rounded(toPlaces: 2))s")
 
             do {
@@ -521,10 +567,10 @@ public actor PostgresConnectionPool {
             await handleNextContinuation()
         }
         catch {
-            let connectionRuntime = fabs(connectionStartTimestamp.timeIntervalSinceNow)
+            let connectionRuntime = abs(connectionStartTimestamp.timeIntervalSinceNow)
             poolConnection.state = .closed
 
-            let logMessage: Logger.Message = "[\(poolName)] Connection \(poolConnection.id) failed after \(connectionRuntime.rounded(toPlaces: 2))s: \(error)"
+            let logMessage: Logger.Message = "[\(poolName)] Connection \(poolConnection.id) failed after \(connectionRuntime.rounded(toPlaces: 2))s: \(String(reflecting: error))"
 
             // Don't just open a new connection, check first if this is a permanent error like wrong password etc.
 
@@ -533,27 +579,22 @@ public actor PostgresConnectionPool {
                 switch psqlError.code {
                 case .authMechanismRequiresPassword,
                      .clientClosedConnection,
+                     .connectionError,
                      .failedToAddSSLHandler,
                      .invalidCommandTag,
                      .messageDecodingFailure,
+                     .queryCancelled,
                      .receivedUnencryptedDataAfterSSLRequest,
                      .saslError,
                      .serverClosedConnection,
                      .sslUnsupported,
+                     .tooManyParameters,
+                     .uncleanShutdown,
                      .unexpectedBackendMessage,
                      .unsupportedAuthMechanism:
                     logger.error(logMessage)
                     await shutdown(withError: psqlError)
                     return
-
-                case .queryCancelled,
-                     .tooManyParameters,
-                     .uncleanShutdown:
-                    break
-
-                case .connectionError:
-                    let delay = UInt64(connectionRetryInterval * 1_000_000_000)
-                    try? await Task<Never, Never>.sleep(nanoseconds: delay)
 
                 default:
                     break
