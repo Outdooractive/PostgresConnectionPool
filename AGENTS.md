@@ -61,7 +61,7 @@ POSTGRES_TESTS=1 scripts/run-coverage.sh 90
 
 See `DEVELOPMENT.md` for the full matrix, environment variables, coverage and
 documentation commands. CI runs macOS unit tests, Linux tests against PostgreSQL
-15–18, the 90% coverage gate and DocC.
+18 (the minimum supported production version), the 90% coverage gate and DocC.
 
 ## Relationship to `PostgresNIO.PostgresClient`
 

@@ -9,8 +9,8 @@ and this project adheres to semantic versioning.
 
 ### Added
 
-- GitHub Actions for macOS unit tests, Linux tests against PostgreSQL 15–18,
-  a 90% coverage gate and DocC.
+- GitHub Actions for macOS unit tests, Linux tests against PostgreSQL 18 (the
+  minimum supported production version), a 90% coverage gate and DocC.
 - `scripts/run-coverage.sh` and `scripts/coverage.py`, including support for
   SwiftPM versions that only emit `.profraw` coverage files.
 - `DEVELOPMENT.md` with unit, integration, coverage, formatting and CI notes.

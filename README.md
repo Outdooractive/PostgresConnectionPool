@@ -7,7 +7,7 @@ A connection pool on top of [PostgresNIO](https://github.com/vapor/postgres-nio)
 
 ## Requirements
 
-Swift 6.3 or higher (Xcode 16+), macOS 15+ or Linux. The test suite covers PostgreSQL 15 through 18.
+Swift 6.3 or higher (Xcode 16+), macOS 15+ or Linux. PostgreSQL 18 or newer is supported; older database versions are untested.
 
 ## Installation
 

@@ -20,7 +20,7 @@ This is the fastest feedback loop and the same mode used by the macOS CI job.
 
 ## Integration tests
 
-Start the bundled PostgreSQL 15 service:
+Start the bundled PostgreSQL 18 service:
 
 ```bash
 docker compose up -d
@@ -93,8 +93,8 @@ Run without `--lint` to apply the changes.
 `.github/workflows/swift.yml` runs:
 
 - **macOS** — unit tests with Swift 6.3.3
-- **Linux** — full tests against PostgreSQL 15, 16, 17 and 18 in the
-  `swift:6.3.3` container
+- **Linux** — full tests against PostgreSQL 18 (the minimum supported
+  production version) in the `swift:6.3.3` container
 - **coverage** — full tests against PostgreSQL 18 with the 90% gate
 - **DocC** — documentation build
 
