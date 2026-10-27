@@ -64,7 +64,8 @@
 --mark-types always
 --markdown-files ignore
 --max-width none
---modifier-order 
+# Match SwiftLint's modifier_order rule so formatting and lint fixes agree.
+--modifier-order override,nonisolated,isolated,open,public,package,internal,fileprivate,private,open(set),public(set),package(set),internal(set),fileprivate(set),private(set),dynamic,mutating,nonmutating,lazy,final,required,convenience,static,class,unowned,weak
 --never-trailing 
 --nil-init remove
 --no-space-operators 
@@ -78,7 +79,7 @@
 --prefer-synthesized-init-for-internal-structs never
 --preserve-acronyms 
 --preserve-decls 
---preserved-property-types Package
+--preserved-property-types Package,CoordinateEntryRow
 --property-types infer-locals-only
 --ranges spaced
 --redundant-async tests-only
@@ -100,7 +101,7 @@
 --suite-name-format preserve
 --tab-width unspecified
 --test-case-access-control internal
---test-case-name-format raw-identifiers
+--test-case-name-format preserve
 --throw-capturing 
 --timezone system
 --trailing-closures 
@@ -130,5 +131,5 @@
 --xcode-indentation enabled
 --xctest-symbols 
 --yoda-swap always
---disable trailingClosures,unusedArguments
---enable blankLineAfterSwitchCase,blankLinesAfterGuardStatements,blockComments,isEmpty,preferContains,preferCountWhere,preferExplicitFalse,preferFirstWhere,preferFlatMap,preferLazyMap,preferMinOverSorted,preferSwiftStringAPI,preferSwiftTesting,singlePropertyPerLine,sortSwitchCases,unusedPrivateDeclarations,wrapEnumCases,wrapMultilineConditionalAssignment,wrapMultilineFunctionChains
+--disable trailingClosures,unusedArguments,preferExplicitFalse
+--enable blankLineAfterSwitchCase,blankLinesAfterGuardStatements,blockComments,isEmpty,preferContains,preferCountWhere,preferFirstWhere,preferFlatMap,preferLazyMap,preferMinOverSorted,preferSwiftStringAPI,preferSwiftTesting,singlePropertyPerLine,sortSwitchCases,unusedPrivateDeclarations,wrapEnumCases,wrapMultilineConditionalAssignment,wrapMultilineFunctionChains
