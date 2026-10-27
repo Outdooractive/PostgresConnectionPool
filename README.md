@@ -25,7 +25,7 @@ targets: [
 ## Features
 
 - **Configurable pool size** — set the maximum number of open connections
-- **Health checks** — optional `SELECT 1` before leasing a connection (default: on)
+- **Health checks** — optional default `SELECT 1` before leasing a connection; custom `onReturnConnection` hooks are always honored
 - **Idle connection culling** — close excess idle connections over a rolling window
 - **Query timeout** — set `statement_timeout` per connection
 - **Connection retry** — delayed retries for transient connection failures
@@ -57,7 +57,7 @@ let configuration = PoolConfiguration(
     queryTimeout: 60.0,
     poolSize: 5,
     maxIdleConnections: 1,
-    healthCheckEnabled: true)
+    defaultHealthCheckEnabled: true)
 
 let pool = PostgresConnectionPool(configuration: configuration)
 
@@ -78,6 +78,9 @@ print(info)
 // Shutdown when done
 await pool.shutdown()
 ```
+
+`defaultHealthCheckEnabled` only controls the built-in `SELECT 1` fallback. A custom
+`onReturnConnection` callback is always invoked, even when the default health check is disabled.
 
 The `PostgresConnectionWrapper` passed to `connection(batchId:_:)` is only valid for the
 duration of the callback. Do not store it, and consume query sequences and `SQLDatabase`

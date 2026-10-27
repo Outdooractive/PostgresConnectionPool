@@ -29,7 +29,7 @@ struct PoolConfigurationTests {
         #expect(config.queryTimeout == nil)
         #expect(config.poolSize == 10)
         #expect(config.maxIdleConnections == nil)
-        #expect(config.healthCheckEnabled)
+        #expect(config.defaultHealthCheckEnabled)
         #expect(config.onOpenConnection == nil)
         #expect(config.onReturnConnection != nil)
         #expect(config.onCloseConnection == nil)
@@ -124,11 +124,22 @@ struct PoolConfigurationTests {
         let config = PoolConfiguration(
             applicationName: "test",
             postgresConfiguration: postgresConfig,
-            healthCheckEnabled: false,
+            defaultHealthCheckEnabled: false)
+
+        #expect(config.defaultHealthCheckEnabled == false)
+        #expect(config.onReturnConnection == nil)
+    }
+
+    @Test
+    func `Custom return hook is kept when the default health check is disabled`() {
+        let config = PoolConfiguration(
+            applicationName: "test",
+            postgresConfiguration: postgresConfig,
+            defaultHealthCheckEnabled: false,
             onReturnConnection: { _, _ in })
 
-        #expect(config.healthCheckEnabled == false)
-        #expect(config.onReturnConnection == nil)
+        #expect(config.defaultHealthCheckEnabled == false)
+        #expect(config.onReturnConnection != nil)
     }
 
 }

@@ -29,7 +29,7 @@ enum PostgresHelpers {
         queryTimeout: TimeInterval? = 10.0,
         poolSize: Int = 5,
         maxIdleConnections: Int? = 1,
-        healthCheckEnabled: Bool = true,
+        defaultHealthCheckEnabled: Bool = true,
         onOpenConnection: (@Sendable (PostgresConnection, Logger) async throws -> Void)? = nil,
         onReturnConnection: (@Sendable (PostgresConnection, Logger) async throws -> Void)? = nil,
         onCloseConnection: (@Sendable (PostgresConnection, Logger) async throws -> Void)? = nil,
@@ -49,7 +49,7 @@ enum PostgresHelpers {
             queryTimeout: queryTimeout,
             poolSize: poolSize,
             maxIdleConnections: maxIdleConnections,
-            healthCheckEnabled: healthCheckEnabled,
+            defaultHealthCheckEnabled: defaultHealthCheckEnabled,
             onOpenConnection: onOpenConnection,
             onReturnConnection: onReturnConnection,
             onCloseConnection: onCloseConnection)

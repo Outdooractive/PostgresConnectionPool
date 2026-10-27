@@ -327,6 +327,28 @@ struct PoolLifecycleTests {
     }
 
     @Test(.timeLimit(.minutes(1)))
+    func `custom return hook runs when the default health check is disabled`() async throws {
+        let calls = Counter()
+        let pool = PostgresConnectionPool(
+            configuration: PostgresHelpers.poolConfiguration(
+                poolSize: 1,
+                maxIdleConnections: nil,
+                defaultHealthCheckEnabled: false,
+                onReturnConnection: { _, _ in
+                    _ = calls.next()
+                }),
+            logger: logger)
+
+        try await pool.connection { connection in
+            _ = try await connection.query("SELECT 1", logger: logger)
+        }
+
+        #expect(calls.value == 1)
+
+        await pool.shutdown()
+    }
+
+    @Test(.timeLimit(.minutes(1)))
     func `failing return hook is retried once`() async throws {
         let calls = Counter()
         let pool = PostgresConnectionPool(
@@ -717,7 +739,7 @@ struct PoolLifecycleTests {
             configuration: PostgresHelpers.poolConfiguration(
                 poolSize: 4,
                 maxIdleConnections: 1,
-                healthCheckEnabled: false),
+                defaultHealthCheckEnabled: false),
             logger: logger,
             maintenanceInterval: 0.02,
             idleConnectionsCheckInterval: 0.1)

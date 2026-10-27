@@ -14,8 +14,8 @@ and this project adheres to semantic versioning.
 - `scripts/run-coverage.sh` and `scripts/coverage.py`, including support for
   SwiftPM versions that only emit `.profraw` coverage files.
 - `DEVELOPMENT.md` with unit, integration, coverage, formatting and CI notes.
-- `PoolConfiguration.healthCheckEnabled` to disable the per-lease `SELECT 1`
-  health check.
+- `PoolConfiguration.defaultHealthCheckEnabled` to disable the built-in per-lease
+  `SELECT 1` health check. Custom `onReturnConnection` callbacks are still honored.
 - `PostgresConnectionPool` initializer parameters for the maintenance interval,
   idle-connection window and an injected `EventLoopGroup`.
 - `PoolInfo.waitingRequests` and batch-filtered connection counts.
