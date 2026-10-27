@@ -102,7 +102,7 @@ jobs:
           scripts/run-coverage.sh 90 | tee coverage-report.txt
       - name: Upload coverage report
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: coverage-report
           path: coverage-report.txt
@@ -120,7 +120,7 @@ jobs:
       - name: Build documentation
         run: swift package --allow-writing-to-directory .build/documentation generate-documentation --target PostgresConnectionPool --disable-indexing
       - name: Upload documentation
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: documentation
           path: .build/documentation
