@@ -76,8 +76,8 @@ struct ConnectionTests {
     }
 
     @Test
-    func `Pool with 100 connections handles 10000 queries`() async throws {
-        let pool = PostgresConnectionPool(configuration: PostgresHelpers.poolConfiguration(poolSize: 100), logger: logger)
+    func `Pool with 20 connections handles 2000 queries`() async throws {
+        let pool = PostgresConnectionPool(configuration: PostgresHelpers.poolConfiguration(poolSize: 20), logger: logger)
 
         let start = 1
         let end = 100

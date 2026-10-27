@@ -441,7 +441,8 @@ struct PoolLifecycleTests {
 
         #expect(pool.logger.label == "PoolTests")
         #expect(pool.connectionName == "PoolTests")
-        #expect(pool.poolName.hasPrefix("test_username@localhost:"))
+        #expect(pool.poolName.hasPrefix("test_username@"))
+        #expect(pool.poolName.hasSuffix(":5432/test_database"))
         #expect(await pool.poolInfo().waitingRequests == 0)
 
         await pool.shutdown()

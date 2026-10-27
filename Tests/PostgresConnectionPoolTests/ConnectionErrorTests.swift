@@ -52,7 +52,7 @@ struct ConnectionErrorTests {
                     || description.contains("handshakeFailed")
                     || description.contains("TLS"),
             )
-            #expect(error.pgPoolDebugDescription.contains("underlying:"))
+            #expect(error.pgPoolDebugDescription.contains("code:"))
         }
     }
 
