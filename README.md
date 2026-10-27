@@ -7,7 +7,7 @@ A connection pool on top of [PostgresNIO](https://github.com/vapor/postgres-nio)
 
 ## Requirements
 
-Swift 6.3 or higher (Xcode 16+), macOS 15+ or Linux.
+Swift 6.3 or higher (Xcode 16+), macOS 15+ or Linux. The test suite covers PostgreSQL 15 through 18.
 
 ## Installation
 
@@ -25,14 +25,16 @@ targets: [
 ## Features
 
 - **Configurable pool size** — set the maximum number of open connections
-- **Health checks** — `SELECT 1` before returning a connection to a caller (configurable via `onReturnConnection`)
-- **Idle connection culling** — automatically close excess idle connections over a 60-second rolling window
+- **Health checks** — optional `SELECT 1` before leasing a connection (default: on)
+- **Idle connection culling** — close excess idle connections over a rolling window
 - **Query timeout** — set `statement_timeout` per connection
-- **Connection retry** — configurable retry interval for transient failures
-- **Batch cancellation** — abort all pending queries for a batch ID
-- **Diagnostics** — per-connection query tracking, usage counters, runtime info
+- **Connection retry** — delayed retries for transient connection failures
+- **Cancellation-aware waiting** — cancelling a request removes it from the queue immediately
+- **Batch cancellation** — abort waiting connection requests for a batch ID
+- **Diagnostics** — per-connection query tracking, usage counters, waiting-request counts and runtime info
 - **PostgresKit integration** — use `connection.sql()` for the `SQLDatabase` API
 - **Listen/Notify support** — `addListener()` and `listen(on:consume:)`
+- **Shared event loop** — reuses `PostgresConnection.defaultEventLoopGroup` by default instead of creating one event loop group per pool
 
 ## Usage
 
@@ -54,7 +56,8 @@ let configuration = PoolConfiguration(
     connectTimeout: 10.0,
     queryTimeout: 60.0,
     poolSize: 5,
-    maxIdleConnections: 1)
+    maxIdleConnections: 1,
+    healthCheckEnabled: true)
 
 let pool = PostgresConnectionPool(configuration: configuration)
 
@@ -75,6 +78,51 @@ print(info)
 // Shutdown when done
 await pool.shutdown()
 ```
+
+The `PostgresConnectionWrapper` passed to `connection(batchId:_:)` is only valid for the
+duration of the callback. Do not store it, and consume query sequences and `SQLDatabase`
+values before returning. The wrapper becomes invalid after the callback and rejects
+further queries.
+
+## Relationship to PostgresNIO's `PostgresClient`
+
+`PostgresNIO` now ships `PostgresClient`, a maintained connection pool with minimum and
+maximum connections, keep-alive probes, an idle timeout and ServiceLifecycle integration.
+It covers most of the pooling concerns this package implements.
+
+This package still provides features `PostgresClient` does not expose directly:
+
+- batch IDs and cancellation of waiting requests
+- per-connection query and runtime diagnostics through `poolInfo()`
+- connection open/return/close hooks
+- the callback-based `connection(batchId:_:)` API used by `mvt-postgis`
+
+A future major version may be rebuilt on top of `PostgresClient` while preserving those
+features. Until then, this package keeps its own pool implementation and its public API.
+
+## Development
+
+```bash
+# Unit tests only (database-backed suites are skipped)
+swift test
+
+# Unit and integration tests against a local PostgreSQL
+docker compose up -d
+POSTGRES_TESTS=1 swift test
+
+# Or point at any PostgreSQL instance
+POSTGRES_HOSTNAME=localhost POSTGRES_USER=test_username \
+POSTGRES_PASSWORD=test_password POSTGRES_DB=test_database swift test
+
+# Coverage gate
+POSTGRES_TESTS=1 scripts/run-coverage.sh 90
+
+# Documentation
+swift package --allow-writing-to-directory .build/documentation \
+    generate-documentation --target PostgresConnectionPool --disable-indexing
+```
+
+See [DEVELOPMENT.md](DEVELOPMENT.md) for details.
 
 ## See also
 

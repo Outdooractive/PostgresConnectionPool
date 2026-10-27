@@ -32,6 +32,12 @@ public struct PoolConfiguration: Sendable {
     /// The maximum number of idle connections to keep open over a 60-second window.
     public let maxIdleConnections: Int?
 
+    /// Whether the default `SELECT 1` health check runs before a connection is leased.
+    ///
+    /// Defaults to `true`. Disable it when the extra round trip per lease is not
+    /// worth the protection against handing out a dead idle connection.
+    public let healthCheckEnabled: Bool
+
     /// Called when new connections to the database are opened.
     ///
     /// Use this to set extra connection options or override the defaults.
@@ -56,6 +62,7 @@ public struct PoolConfiguration: Sendable {
     ///   - queryTimeout: Timeout for individual database queries. `nil` means no timeout.
     ///   - poolSize: The maximum number of open connections (default: 10).
     ///   - maxIdleConnections: The maximum number of idle connections to keep open.
+    ///   - healthCheckEnabled: Whether to run the default `SELECT 1` health check before leasing.
     ///   - onOpenConnection: Called when new connections are opened.
     ///   - onReturnConnection: Called before a connection is returned to a caller.
     ///   - onCloseConnection: Called just before a connection is closed.
@@ -67,9 +74,10 @@ public struct PoolConfiguration: Sendable {
         queryTimeout: TimeInterval? = nil,
         poolSize: Int = 10,
         maxIdleConnections: Int? = nil,
+        healthCheckEnabled: Bool = true,
         onOpenConnection: (@Sendable (PostgresConnection, Logger) async throws -> Void)? = nil,
         onReturnConnection: (@Sendable (PostgresConnection, Logger) async throws -> Void)? = nil,
-        onCloseConnection: (@Sendable (PostgresConnection, Logger) async throws -> Void)? = nil
+        onCloseConnection: (@Sendable (PostgresConnection, Logger) async throws -> Void)? = nil,
     ) {
         self.applicationName = applicationName
         self.postgresConfiguration = postgresConfiguration
@@ -78,11 +86,14 @@ public struct PoolConfiguration: Sendable {
         self.queryTimeout = queryTimeout?.atLeast(1.0)
         self.poolSize = poolSize.atLeast(1)
         self.maxIdleConnections = maxIdleConnections?.atLeast(0)
+        self.healthCheckEnabled = healthCheckEnabled
 
         self.onOpenConnection = onOpenConnection
-        self.onReturnConnection = onReturnConnection ?? { connection, logger in
-            try await connection.query("SELECT 1", logger: logger)
-        }
+        self.onReturnConnection = healthCheckEnabled
+            ? (onReturnConnection ?? { connection, logger in
+                try await connection.query("SELECT 1", logger: logger)
+            })
+            : nil
         self.onCloseConnection = onCloseConnection
     }
 

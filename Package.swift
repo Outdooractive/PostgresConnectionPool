@@ -12,9 +12,10 @@ let package = Package(
     ],
     dependencies: [
         .package(url: "https://github.com/apple/swift-atomics.git", from: "1.3.1"),
-        .package(url: "https://github.com/apple/swift-collections", from: "1.6.0"),
-        .package(url: "https://github.com/vapor/postgres-nio.git", from: "1.33.0"),
-        .package(url: "https://github.com/vapor/postgres-kit", from: "2.15.1"),
+        .package(url: "https://github.com/apple/swift-collections", from: "1.7.5"),
+        .package(url: "https://github.com/vapor/postgres-nio.git", from: "1.33.2"),
+        .package(url: "https://github.com/vapor/postgres-kit", from: "2.17.0"),
+        .package(url: "https://github.com/swiftlang/swift-docc-plugin", from: "1.5.0"),
     ],
     targets: [
         .target(
@@ -22,6 +23,7 @@ let package = Package(
             dependencies: [
                 .product(name: "Atomics", package: "swift-atomics"),
                 .product(name: "Collections", package: "swift-collections"),
+                .product(name: "OrderedCollections", package: "swift-collections"),
                 .product(name: "PostgresNIO", package: "postgres-nio"),
                 .product(name: "PostgresKit", package: "postgres-kit"),
             ]),
@@ -30,5 +32,4 @@ let package = Package(
             dependencies: [
                 .target(name: "PostgresConnectionPool"),
             ]),
-    ]
-)
+    ])

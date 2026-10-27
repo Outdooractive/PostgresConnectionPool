@@ -8,7 +8,7 @@ import PostgresNIO
 
 final class PoolConnection: Identifiable, Equatable, @unchecked Sendable {
 
-    // For connection ids
+    /// For connection ids
     private static let connectionId: ManagedAtomic<Int> = .init(0)
 
     let usageCounter: ManagedAtomic<Int> = .init(0)
@@ -26,13 +26,30 @@ final class PoolConnection: Identifiable, Equatable, @unchecked Sendable {
     }
 
     private var queryStartTimestamp: Date?
+    private let queryLock = NSLock()
+    private var storedQuery: String?
+
     var query: String? {
-        didSet {
-            queryStartTimestamp = (query == nil ? nil : Date())
+        get {
+            queryLock.lock()
+            defer { queryLock.unlock() }
+            return storedQuery
+        }
+        set {
+            queryLock.lock()
+            defer { queryLock.unlock() }
+
+            storedQuery = newValue
+            queryStartTimestamp = (newValue == nil ? nil : Date())
         }
     }
+
     var queryRuntime: TimeInterval? {
+        queryLock.lock()
+        defer { queryLock.unlock() }
+
         guard let queryStartTimestamp else { return nil }
+
         return Date().timeIntervalSince(queryStartTimestamp)
     }
 

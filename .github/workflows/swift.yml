@@ -1,0 +1,126 @@
+name: Swift
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+  workflow_dispatch:
+
+concurrency:
+  group: swift-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  macos:
+    name: test (macOS)
+    runs-on: macos-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: swift-actions/setup-swift@v3
+        with:
+          swift-version: "6.3.3"
+      - name: Build and test
+        run: swift test
+
+  linux:
+    name: test (Linux, PostgreSQL ${{ matrix.postgres }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    container: swift:6.3.3
+    strategy:
+      fail-fast: false
+      matrix:
+        postgres: ["15", "16", "17", "18"]
+    services:
+      postgres:
+        image: postgres:${{ matrix.postgres }}
+        env:
+          POSTGRES_USER: test_username
+          POSTGRES_PASSWORD: test_password
+          POSTGRES_DB: test_database
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U test_username -d test_database"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    env:
+      POSTGRES_HOSTNAME: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_USER: test_username
+      POSTGRES_PASSWORD: test_password
+      POSTGRES_DB: test_database
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install OpenSSL development files
+        run: apt-get update && apt-get install -y libssl-dev
+      - name: Build and test
+        run: swift test
+
+  coverage:
+    name: coverage (Linux)
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    container: swift:6.3.3
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: test_username
+          POSTGRES_PASSWORD: test_password
+          POSTGRES_DB: test_database
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U test_username -d test_database"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    env:
+      POSTGRES_HOSTNAME: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_USER: test_username
+      POSTGRES_PASSWORD: test_password
+      POSTGRES_DB: test_database
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install OpenSSL development files
+        run: apt-get update && apt-get install -y libssl-dev
+      - name: Ensure Python
+        run: command -v python3 >/dev/null || (apt-get update && apt-get install -y python3)
+      - name: Run tests with coverage
+        shell: bash
+        run: |
+          set -o pipefail
+          scripts/run-coverage.sh 90 | tee coverage-report.txt
+      - name: Upload coverage report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: coverage-report.txt
+          if-no-files-found: ignore
+
+  docc:
+    name: documentation (DocC)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    container: swift:6.3.3
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install OpenSSL development files
+        run: apt-get update && apt-get install -y libssl-dev
+      - name: Build documentation
+        run: swift package --allow-writing-to-directory .build/documentation generate-documentation --target PostgresConnectionPool --disable-indexing
+      - name: Upload documentation
+        uses: actions/upload-artifact@v4
+        with:
+          name: documentation
+          path: .build/documentation
+          if-no-files-found: ignore

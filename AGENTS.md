@@ -14,25 +14,28 @@ One product:
 Key source areas:
 - **`PostgresConnectionPool.swift`** — Main `actor PostgresConnectionPool`: init, `connection(batchId:_:)`,
   `shutdown()`, `abortBatch(_:)`, `closeIdleConnections()`, `poolInfo(batchId:)`.
-  Manages connection lifecycle (open, health check, release, close), idle connection culling,
-  and continuation-based connection queue.
+  Manages connection lifecycle (open, health check, release, close), cancellation-aware waiting,
+  idle connection culling, a single maintenance task and delayed connection retries. Uses
+  `PostgresConnection.defaultEventLoopGroup` unless a group is injected.
 - **`PoolConfiguration.swift`** — `PoolConfiguration` struct: connection parameters, pool size,
   timeouts, callbacks (`onOpenConnection`, `onReturnConnection`, `onCloseConnection`).
 - **`PoolConnection.swift`** — Internal `PoolConnection` class: connection identity (atomic ID),
   usage counter, state machine (`connecting`/`available`/`active`/`closed`), query tracking.
 - **`PoolConnectionState.swift`** — `PoolConnectionState` enum: `.active(Date)`, `.available`,
   `.closed`, `.connecting`.
-- **`PoolContinuation.swift`** — Internal continuation wrapper for pending connection requests.
+- **`PoolContinuation.swift`** — Internal continuation wrapper for pending connection requests,
+  including its cancellation marker and health-check attempt counter.
 - **`PoolError.swift`** — Error enum: `.cancelled`, `.connectionFailed`, `.poolDestroyed(PSQLError?)`,
   `.postgresError(PSQLError)`, `.queryCancelled`, `.unknown`.
 - **`PoolInfo.swift`** — Diagnostics: `PoolInfo` and `PoolInfo.ConnectionInfo` structs with
-  connection counts, usage, queries, runtimes.
+  connection counts, waiting requests, usage, queries and runtimes.
 - **`PostgresConnectionWrapper.swift`** — Public connection handle: forwards `query()`, `sql()`,
   `addListener()`, `listen(on:consume:)` to the underlying `PostgresConnection` while tracking
-  query text for runtime diagnostics.
+  query text for runtime diagnostics. Invalidated when the callback returns; escaping handles
+  must not be used.
 - **`Extensions/`** — Helpers: `EmptyTestable` (isNotEmpty), `FloatingPoint.rounded(toPlaces:)`,
-  `Double.atLeast(_:)`, `Int.atLeast(_:)`, `String.matches()`/`replacingPattern()`,
-  `Task.after(seconds:priority:operation:)`, `PSQLError.pgPoolDescription`/`pgPoolDebugDescription`.
+  `Double.atLeast(_:)`, `Int.atLeast(_:)`, `String.matches()`/`replacingPattern()` and
+  `PSQLError.pgPoolDescription`/`pgPoolDebugDescription`.
 
 Dependencies:
 - **PostgresNIO** — async PostgreSQL client, `PostgresConnection`, `PSQLError`
@@ -44,15 +47,29 @@ Dependencies:
 
 ```bash
 swift build           # build library
-swift test            # run all tests (Swift Testing)
+swift test            # unit tests; database-backed suites are skipped
 ```
 
-A running PostgreSQL container is required for integration tests. Use the provided `docker-compose.yml`:
+Integration tests are gated by `POSTGRES_HOSTNAME` or `POSTGRES_TESTS=1`:
 
 ```bash
 docker compose up -d
-swift test
+POSTGRES_TESTS=1 swift test
+
+POSTGRES_TESTS=1 scripts/run-coverage.sh 90
 ```
+
+See `DEVELOPMENT.md` for the full matrix, environment variables, coverage and
+documentation commands. CI runs macOS unit tests, Linux tests against PostgreSQL
+15–18, the 90% coverage gate and DocC.
+
+## Relationship to `PostgresNIO.PostgresClient`
+
+`PostgresClient` is the upstream pool and covers min/max connections, keep-alive,
+idle timeout and ServiceLifecycle integration. This package additionally provides
+batch cancellation, per-connection diagnostics and connection hooks. A future major
+version may be rebuilt on `PostgresClient`; do not assume the custom pool can be
+removed without preserving those features.
 
 ## Code style conventions
 

@@ -19,7 +19,7 @@ protocol EmptyTestable {
 extension EmptyTestable {
 
     var isNotEmpty: Bool {
-        !isEmpty
+        isEmpty == false
     }
 
 }

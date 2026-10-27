@@ -11,13 +11,14 @@ extension String {
     /// A Boolean value indicating whether the string matches a regular expression.
     func matches(
         _ regexp: String,
-        caseInsensitive: Bool = false)
-        -> Bool
-    {
+        caseInsensitive: Bool = false,
+    ) -> Bool {
         var options: String.CompareOptions = .regularExpression
-        if caseInsensitive { options.insert(.caseInsensitive) }
+        if caseInsensitive {
+            options.insert(.caseInsensitive)
+        }
 
-        return self.range(of: regexp, options: options) != nil
+        return range(of: regexp, options: options) != nil
     }
 
     /// Returns a new string with the matches of the regular expression replaced with some other string.
@@ -25,13 +26,16 @@ extension String {
         _ regexp: String,
         with replacement: String,
         caseInsensitive: Bool = false,
-        treatAsOneLine: Bool = false)
-        -> String
-    {
+        treatAsOneLine: Bool = false,
+    ) -> String {
         var options = NSRegularExpression.Options()
 
-        if caseInsensitive { options.insert(.caseInsensitive) }
-        if treatAsOneLine { options.insert(.dotMatchesLineSeparators) }
+        if caseInsensitive {
+            options.insert(.caseInsensitive)
+        }
+        if treatAsOneLine {
+            options.insert(.dotMatchesLineSeparators)
+        }
 
         guard let pattern = try? NSRegularExpression(pattern: regexp, options: options) else {
             return self
@@ -40,7 +44,7 @@ extension String {
         return pattern.stringByReplacingMatches(
             in: self,
             options: NSRegularExpression.MatchingOptions(),
-            range: NSRange(location: 0, length: self.count),
+            range: NSRange(startIndex ..< endIndex, in: self),
             withTemplate: replacement)
     }
 
