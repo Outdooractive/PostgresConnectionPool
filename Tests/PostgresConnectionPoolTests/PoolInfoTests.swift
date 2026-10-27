@@ -3,15 +3,14 @@
 //
 
 import Foundation
-import Testing
-
 @testable import PostgresConnectionPool
+import Testing
 
 @Suite("PoolInfo")
 struct PoolInfoTests {
 
-    @Test("description includes pool name and connection counts")
-    func descriptionFormat() {
+    @Test
+    func `description includes pool name and connection counts`() {
         let connectionInfo = PoolInfo.ConnectionInfo(
             id: 1,
             name: "test - CONN:1",
@@ -26,6 +25,7 @@ struct PoolInfoTests {
             openConnections: 1,
             activeConnections: 0,
             availableConnections: 1,
+            waitingRequests: 0,
             connections: [connectionInfo],
             isShutdown: false,
             shutdownError: nil)
@@ -33,26 +33,28 @@ struct PoolInfoTests {
         let desc = info.description
         #expect(desc.contains("user@localhost:5432/db"))
         #expect(desc.contains("Connections: 1/0/1"))
+        #expect(desc.contains("Waiting requests: 0"))
         #expect(desc.contains("Is shut down? false"))
     }
 
-    @Test("description without connections omits connection details")
-    func descriptionNoConnections() {
+    @Test
+    func `description without connections omits connection details`() {
         let info = PoolInfo(
             name: "pool",
             openConnections: 0,
             activeConnections: 0,
             availableConnections: 0,
+            waitingRequests: 0,
             connections: [],
             isShutdown: false,
             shutdownError: nil)
 
         let desc = info.description
-        #expect(!desc.contains("Connection:"))
+        #expect(desc.contains("Connection:") == false)
     }
 
-    @Test("connectionInfo description format")
-    func connectionInfoDescription() {
+    @Test
+    func `connectionInfo description format`() {
         let info = PoolInfo.ConnectionInfo(
             id: 42,
             name: "app - CONN:42",
@@ -71,8 +73,8 @@ struct PoolInfoTests {
         #expect(desc.contains("BatchId: 7"))
     }
 
-    @Test("connectionInfo without query omits query details")
-    func connectionInfoNoQuery() {
+    @Test
+    func `connectionInfo without query omits query details`() {
         let info = PoolInfo.ConnectionInfo(
             id: 1,
             name: "conn",
@@ -83,9 +85,9 @@ struct PoolInfoTests {
             state: .available)
 
         let desc = info.description
-        #expect(!desc.contains("Query:"))
-        #expect(!desc.contains("Runtime:"))
-        #expect(!desc.contains("BatchId:"))
+        #expect(desc.contains("Query:") == false)
+        #expect(desc.contains("Runtime:") == false)
+        #expect(desc.contains("BatchId:") == false)
     }
 
 }

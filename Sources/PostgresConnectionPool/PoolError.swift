@@ -16,7 +16,7 @@ public enum PoolError: Error, Sendable {
 
     /// The pool was already shut down.
     ///
-    /// Contains the original ``PSQLError`` if the pool was shut down due to a
+    /// Contains the original `PSQLError` if the pool was shut down due to a
     /// permanent server error.
     case poolDestroyed(PSQLError?)
 
@@ -39,28 +39,39 @@ extension PoolError: CustomStringConvertible {
     public var description: String {
         switch self {
         case .cancelled:
-            return "<PoolError: cancelled>"
+            "<PoolError: cancelled>"
 
         case .connectionFailed:
-            return "<PoolError: connectionFailed>"
+            "<PoolError: connectionFailed>"
 
-        case .poolDestroyed(let psqlError):
+        case let .poolDestroyed(psqlError):
             if let psqlError {
-                return "<PoolError: poolDestroyed=\(psqlError.description)>"
+                "<PoolError: poolDestroyed=\(psqlError.description)>"
             }
             else {
-                return "<PoolError: poolDestroyed>"
+                "<PoolError: poolDestroyed>"
             }
 
-        case .postgresError(let psqlError):
-            return "<PoolError: postgresError=\(psqlError.description)>"
+        case let .postgresError(psqlError):
+            "<PoolError: postgresError=\(psqlError.description)>"
 
         case .queryCancelled:
-            return "<PoolError: queryCancelled>"
+            "<PoolError: queryCancelled>"
 
         case .unknown:
-            return "<PoolError: unknown>"
+            "<PoolError: unknown>"
         }
+    }
+
+}
+
+// MARK: - LocalizedError
+
+extension PoolError: LocalizedError {
+
+    /// A human-readable error description.
+    public var errorDescription: String? {
+        description
     }
 
 }
@@ -73,27 +84,27 @@ extension PoolError: CustomDebugStringConvertible {
     public var debugDescription: String {
         switch self {
         case .cancelled:
-            return "<PoolError: cancelled>"
+            "<PoolError: cancelled>"
 
         case .connectionFailed:
-            return "<PoolError: connectionFailed>"
+            "<PoolError: connectionFailed>"
 
-        case .poolDestroyed(let psqlError):
+        case let .poolDestroyed(psqlError):
             if let psqlError {
-                return "<PoolError: poolDestroyed=\(psqlError.debugDescription)>"
+                "<PoolError: poolDestroyed=\(psqlError.debugDescription)>"
             }
             else {
-                return "<PoolError: poolDestroyed>"
+                "<PoolError: poolDestroyed>"
             }
 
-        case .postgresError(let psqlError):
-            return "<PoolError: postgresError=\(psqlError.debugDescription)>"
+        case let .postgresError(psqlError):
+            "<PoolError: postgresError=\(psqlError.debugDescription)>"
 
-        case .queryCancelled(query: let query, runtime: let runtime):
-            return "<PoolError: query '\(query)' cancelled after \(runtime.rounded(toPlaces: 3))s>"
+        case let .queryCancelled(query: query, runtime: runtime):
+            "<PoolError: query '\(query)' cancelled after \(runtime.rounded(toPlaces: 3))s>"
 
         case .unknown:
-            return "<PoolError: unknown>"
+            "<PoolError: unknown>"
         }
     }
 

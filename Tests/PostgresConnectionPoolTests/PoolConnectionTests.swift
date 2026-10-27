@@ -3,28 +3,27 @@
 //
 
 import Foundation
-import Testing
-
 @testable import PostgresConnectionPool
+import Testing
 
 @Suite("PoolConnection")
 struct PoolConnectionTests {
 
-    @Test("IDs are unique and incrementing")
-    func uniqueIds() {
+    @Test
+    func `IDs are unique and incrementing`() {
         let c1 = PoolConnection()
         let c2 = PoolConnection()
         #expect(c2.id > c1.id)
     }
 
-    @Test("Initial state is connecting")
-    func initialState() {
+    @Test
+    func `Initial state is connecting`() {
         let connection = PoolConnection()
         #expect(connection.state == .connecting)
     }
 
-    @Test("State transitions to active increment usage counter")
-    func activeIncrementsUsage() {
+    @Test
+    func `State transitions to active increment usage counter`() {
         let connection = PoolConnection()
         let before = connection.usageCounter.load(ordering: .relaxed)
         connection.state = .active(Date())
@@ -32,24 +31,24 @@ struct PoolConnectionTests {
         #expect(after == before + 1)
     }
 
-    @Test("State transitions to available does not increment usage")
-    func availableDoesNotIncrementUsage() {
+    @Test
+    func `State transitions to available does not increment usage`() {
         let connection = PoolConnection()
         let before = connection.usageCounter.load(ordering: .relaxed)
         connection.state = .available
         #expect(connection.usageCounter.load(ordering: .relaxed) == before)
     }
 
-    @Test("State transitions to closed does not increment usage")
-    func closedDoesNotIncrementUsage() {
+    @Test
+    func `State transitions to closed does not increment usage`() {
         let connection = PoolConnection()
         let before = connection.usageCounter.load(ordering: .relaxed)
         connection.state = .closed
         #expect(connection.usageCounter.load(ordering: .relaxed) == before)
     }
 
-    @Test("Setting query sets queryStartTimestamp")
-    func queryTracking() {
+    @Test
+    func `Setting query sets queryStartTimestamp`() {
         let connection = PoolConnection()
         #expect(connection.query == nil)
         #expect(connection.queryRuntime == nil)
@@ -63,8 +62,8 @@ struct PoolConnectionTests {
         #expect(connection.queryRuntime == nil)
     }
 
-    @Test("Equality by id")
-    func equality() {
+    @Test
+    func `Equality by id`() {
         // PoolConnection ids are globally unique, so two instances are never equal.
         let c1 = PoolConnection()
         let c2 = PoolConnection()
@@ -72,8 +71,8 @@ struct PoolConnectionTests {
         #expect(c1 == c1)
     }
 
-    @Test("Consecutive active transitions each increment usage")
-    func multipleActiveTransitions() {
+    @Test
+    func `Consecutive active transitions each increment usage`() {
         let connection = PoolConnection()
         connection.state = .active(Date())
         connection.state = .available

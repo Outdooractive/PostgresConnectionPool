@@ -6,8 +6,13 @@ x-shared-config: &shared_config
     POSTGRES_PASSWORD: test_password
   ports:
     - 5432:5432
+  healthcheck:
+    test: ["CMD-SHELL", "pg_isready -U test_username -d test_database"]
+    interval: 2s
+    timeout: 5s
+    retries: 30
 
 services:
-  psql-15:
-    image: postgres:15
+  psql-18:
+    image: postgres:18
     <<: *shared_config

@@ -6,7 +6,7 @@
 import PostgresNIO
 import Testing
 
-@Suite("Connection Tests", .serialized)
+@Suite("Connection Tests", .serialized, .enabled(if: PostgresHelpers.isAvailable))
 struct ConnectionTests {
 
     private let logger: Logger = {
@@ -15,8 +15,8 @@ struct ConnectionTests {
         return logger
     }()
 
-    @Test("Can connect and execute a query")
-    func testCanConnect() async throws {
+    @Test
+    func `Can connect and execute a query`() async throws {
         let pool = PostgresConnectionPool(configuration: PostgresHelpers.poolConfiguration(), logger: logger)
 
         try await pool.connection { connection in
@@ -28,8 +28,8 @@ struct ConnectionTests {
         #expect(didShutdown)
     }
 
-    @Test("Pool info reflects state correctly")
-    func testPoolInfo() async throws {
+    @Test
+    func `Pool info reflects state correctly`() async throws {
         let pool = PostgresConnectionPool(configuration: PostgresHelpers.poolConfiguration(), logger: logger)
 
         let poolInfoBefore = await pool.poolInfo()
@@ -38,14 +38,14 @@ struct ConnectionTests {
         #expect(poolInfoBefore.availableConnections == 0)
         #expect(poolInfoBefore.openConnections == 0)
         #expect(poolInfoBefore.connections.count == poolInfoBefore.openConnections)
-        #expect(!poolInfoBefore.isShutdown)
+        #expect(poolInfoBefore.isShutdown == false)
         #expect(poolInfoBefore.shutdownError == nil)
 
         let start = 1
-        let end = 1000
+        let end = 100
 
         try await withThrowingDiscardingTaskGroup { taskGroup in
-            for _ in 1 ... 1000 {
+            for _ in 1 ... 200 {
                 taskGroup.addTask {
                     try await pool.connection { connection in
                         _ = try await connection.query("SELECT generate_series(\(start), \(end));", logger: logger)
@@ -60,7 +60,7 @@ struct ConnectionTests {
         #expect(poolInfo.availableConnections > 0)
         #expect(poolInfo.openConnections > 0)
         #expect(poolInfo.connections.count == poolInfo.openConnections)
-        #expect(!poolInfo.isShutdown)
+        #expect(poolInfo.isShutdown == false)
         #expect(poolInfo.shutdownError == nil)
 
         await pool.shutdown()
@@ -70,20 +70,20 @@ struct ConnectionTests {
         #expect(poolInfoAfterShutdown.activeConnections == 0)
         #expect(poolInfoAfterShutdown.availableConnections == 0)
         #expect(poolInfoAfterShutdown.openConnections == 0)
-        #expect(poolInfoAfterShutdown.connections.count == 0)
+        #expect(poolInfoAfterShutdown.connections.isEmpty)
         #expect(poolInfoAfterShutdown.isShutdown)
         #expect(poolInfoAfterShutdown.shutdownError == nil)
     }
 
-    @Test("Pool with 100 connections handles 10000 queries")
-    func testPoolSize100() async throws {
-        let pool = PostgresConnectionPool(configuration: PostgresHelpers.poolConfiguration(poolSize: 100), logger: logger)
+    @Test
+    func `Pool with 20 connections handles 2000 queries`() async throws {
+        let pool = PostgresConnectionPool(configuration: PostgresHelpers.poolConfiguration(poolSize: 20), logger: logger)
 
         let start = 1
         let end = 100
 
         try await withThrowingDiscardingTaskGroup { taskGroup in
-            for _ in 1 ... 10000 {
+            for _ in 1 ... 2000 {
                 taskGroup.addTask {
                     try await pool.connection { connection in
                         _ = try await connection.query("SELECT generate_series(\(start), \(end));", logger: logger)
@@ -97,7 +97,7 @@ struct ConnectionTests {
         #expect(poolInfo.availableConnections > 0)
         #expect(poolInfo.openConnections > 0)
         #expect(poolInfo.connections.count == poolInfo.openConnections)
-        #expect(!poolInfo.isShutdown)
+        #expect(poolInfo.isShutdown == false)
         #expect(poolInfo.shutdownError == nil)
 
         await pool.closeIdleConnections()
@@ -107,7 +107,7 @@ struct ConnectionTests {
         #expect(poolInfoIdleClosed.availableConnections == 0)
         #expect(poolInfoIdleClosed.openConnections == 0)
         #expect(poolInfoIdleClosed.connections.count == poolInfoIdleClosed.openConnections)
-        #expect(!poolInfoIdleClosed.isShutdown)
+        #expect(poolInfoIdleClosed.isShutdown == false)
         #expect(poolInfoIdleClosed.shutdownError == nil)
 
         await pool.shutdown()

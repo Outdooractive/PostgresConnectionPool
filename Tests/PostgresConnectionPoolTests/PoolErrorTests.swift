@@ -2,57 +2,62 @@
 //  Created by Thomas Rasch on 07.07.26.
 //
 
-import Testing
-
 @testable import PostgresConnectionPool
+import Testing
 
 @Suite("PoolError")
 struct PoolErrorTests {
 
-    @Test("cancelled description")
-    func cancelledDescription() {
+    @Test
+    func `cancelled localizedDescription`() {
+        let error = PoolError.cancelled
+        #expect(error.localizedDescription == "<PoolError: cancelled>")
+    }
+
+    @Test
+    func `cancelled description`() {
         #expect(PoolError.cancelled.description == "<PoolError: cancelled>")
     }
 
-    @Test("cancelled debugDescription")
-    func cancelledDebugDescription() {
+    @Test
+    func `cancelled debugDescription`() {
         #expect(PoolError.cancelled.debugDescription == "<PoolError: cancelled>")
     }
 
-    @Test("connectionFailed description")
-    func connectionFailedDescription() {
+    @Test
+    func `connectionFailed description`() {
         #expect(PoolError.connectionFailed.description == "<PoolError: connectionFailed>")
     }
 
-    @Test("connectionFailed debugDescription")
-    func connectionFailedDebugDescription() {
+    @Test
+    func `connectionFailed debugDescription`() {
         #expect(PoolError.connectionFailed.debugDescription == "<PoolError: connectionFailed>")
     }
 
-    @Test("poolDestroyed without error description")
-    func poolDestroyedNoErrorDescription() {
+    @Test
+    func `poolDestroyed without error description`() {
         let error = PoolError.poolDestroyed(nil)
         #expect(error.description == "<PoolError: poolDestroyed>")
     }
 
-    @Test("poolDestroyed without error debugDescription")
-    func poolDestroyedNoErrorDebugDescription() {
+    @Test
+    func `poolDestroyed without error debugDescription`() {
         let error = PoolError.poolDestroyed(nil)
         #expect(error.debugDescription == "<PoolError: poolDestroyed>")
     }
 
-    @Test("unknown description")
-    func unknownDescription() {
+    @Test
+    func `unknown description`() {
         #expect(PoolError.unknown.description == "<PoolError: unknown>")
     }
 
-    @Test("unknown debugDescription")
-    func unknownDebugDescription() {
+    @Test
+    func `unknown debugDescription`() {
         #expect(PoolError.unknown.debugDescription == "<PoolError: unknown>")
     }
 
-    @Test("queryCancelled description and debugDescription")
-    func queryCancelledDescriptions() {
+    @Test
+    func `queryCancelled description and debugDescription`() {
         let error = PoolError.queryCancelled(query: "SELECT 1", runtime: 1.234)
         #expect(error.description == "<PoolError: queryCancelled>")
         #expect(error.debugDescription == "<PoolError: query 'SELECT 1' cancelled after 1.234s>")

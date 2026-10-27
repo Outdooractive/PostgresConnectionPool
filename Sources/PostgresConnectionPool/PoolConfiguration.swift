@@ -32,6 +32,14 @@ public struct PoolConfiguration: Sendable {
     /// The maximum number of idle connections to keep open over a 60-second window.
     public let maxIdleConnections: Int?
 
+    /// Whether the built-in default `SELECT 1` health check is installed.
+    ///
+    /// Defaults to `true`. This only affects the fallback used when no custom
+    /// ``onReturnConnection`` is provided; a custom callback is always honored.
+    /// Disable the default when the extra round trip per lease is not worth the
+    /// protection against handing out a dead idle connection.
+    public let defaultHealthCheckEnabled: Bool
+
     /// Called when new connections to the database are opened.
     ///
     /// Use this to set extra connection options or override the defaults.
@@ -39,8 +47,10 @@ public struct PoolConfiguration: Sendable {
 
     /// Called before a connection is given to a client.
     ///
-    /// The default implementation runs `SELECT 1` as a health check and closes
-    /// the connection on failure.
+    /// A custom callback is always used, regardless of
+    /// ``defaultHealthCheckEnabled``. When this is `nil` and
+    /// ``defaultHealthCheckEnabled`` is `true`, the built-in default runs
+    /// `SELECT 1` as a health check.
     public let onReturnConnection: (@Sendable (PostgresConnection, Logger) async throws -> Void)?
 
     /// Called just before a connection is closed.
@@ -56,8 +66,11 @@ public struct PoolConfiguration: Sendable {
     ///   - queryTimeout: Timeout for individual database queries. `nil` means no timeout.
     ///   - poolSize: The maximum number of open connections (default: 10).
     ///   - maxIdleConnections: The maximum number of idle connections to keep open.
+    ///   - defaultHealthCheckEnabled: Whether to install the default `SELECT 1` health check when no custom
+    ///     ``onReturnConnection`` is provided.
     ///   - onOpenConnection: Called when new connections are opened.
-    ///   - onReturnConnection: Called before a connection is returned to a caller.
+    ///   - onReturnConnection: Called before a connection is returned to a caller. A custom callback is
+    ///     always used, even when the default health check is disabled.
     ///   - onCloseConnection: Called just before a connection is closed.
     public init(
         applicationName: String,
@@ -67,9 +80,10 @@ public struct PoolConfiguration: Sendable {
         queryTimeout: TimeInterval? = nil,
         poolSize: Int = 10,
         maxIdleConnections: Int? = nil,
+        defaultHealthCheckEnabled: Bool = true,
         onOpenConnection: (@Sendable (PostgresConnection, Logger) async throws -> Void)? = nil,
         onReturnConnection: (@Sendable (PostgresConnection, Logger) async throws -> Void)? = nil,
-        onCloseConnection: (@Sendable (PostgresConnection, Logger) async throws -> Void)? = nil
+        onCloseConnection: (@Sendable (PostgresConnection, Logger) async throws -> Void)? = nil,
     ) {
         self.applicationName = applicationName
         self.postgresConfiguration = postgresConfiguration
@@ -78,11 +92,22 @@ public struct PoolConfiguration: Sendable {
         self.queryTimeout = queryTimeout?.atLeast(1.0)
         self.poolSize = poolSize.atLeast(1)
         self.maxIdleConnections = maxIdleConnections?.atLeast(0)
+        self.defaultHealthCheckEnabled = defaultHealthCheckEnabled
 
         self.onOpenConnection = onOpenConnection
-        self.onReturnConnection = onReturnConnection ?? { connection, logger in
-            try await connection.query("SELECT 1", logger: logger)
+
+        if let onReturnConnection {
+            self.onReturnConnection = onReturnConnection
         }
+        else if defaultHealthCheckEnabled {
+            self.onReturnConnection = { connection, logger in
+                try await connection.query("SELECT 1", logger: logger)
+            }
+        }
+        else {
+            self.onReturnConnection = nil
+        }
+
         self.onCloseConnection = onCloseConnection
     }
 

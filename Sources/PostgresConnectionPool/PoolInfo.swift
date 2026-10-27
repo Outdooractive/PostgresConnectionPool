@@ -10,6 +10,7 @@ public struct PoolInfo: Sendable {
 
     /// Information about a single open connection in the pool.
     public struct ConnectionInfo: Sendable {
+
         /// The unique connection identifier.
         public let id: Int
 
@@ -30,6 +31,7 @@ public struct PoolInfo: Sendable {
 
         /// The current state of the connection.
         public let state: PoolConnectionState
+
     }
 
     /// A human-readable name for the pool (typically the Postgres connection string).
@@ -43,6 +45,9 @@ public struct PoolInfo: Sendable {
 
     /// The number of idle connections available for reuse.
     public let availableConnections: Int
+
+    /// The number of requests waiting for a connection.
+    public let waitingRequests: Int
 
     /// Detailed information about each open connection.
     public let connections: [ConnectionInfo]
@@ -63,6 +68,7 @@ extension PoolInfo: CustomStringConvertible {
         var lines: [String] = [
             "Pool: \(name)",
             "  Connections: \(openConnections)/\(activeConnections)/\(availableConnections) (open/active/available)",
+            "  Waiting requests: \(waitingRequests)",
             "  Is shut down? \(isShutdown) \(shutdownError.map({ "(\($0.description))" }) ?? "")",
         ]
 

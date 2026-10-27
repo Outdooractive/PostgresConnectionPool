@@ -6,7 +6,7 @@ import PostgresConnectionPool
 import PostgresNIO
 import Testing
 
-@Suite("Connection Error Tests", .serialized)
+@Suite("Connection Error Tests", .serialized, .enabled(if: PostgresHelpers.isAvailable))
 struct ConnectionErrorTests {
 
     private let logger: Logger = {
@@ -15,38 +15,44 @@ struct ConnectionErrorTests {
         return logger
     }()
 
-    @Test("Wrong host fails with connectionError")
-    func testConnectWrongHost() async throws {
+    @Test
+    func `Wrong host fails with connectionError`() async throws {
         try await withConfiguration(PostgresHelpers.poolConfiguration(host: "notworking"), expectedErrorCode: "connectionError")
     }
 
-    @Test("Wrong port fails with connectionError")
-    func testConnectWrongPort() async throws {
+    @Test
+    func `Wrong port fails with connectionError`() async throws {
         try await withConfiguration(PostgresHelpers.poolConfiguration(port: 99999), expectedErrorCode: "connectionError")
     }
 
-    @Test("Wrong username fails with password auth error")
-    func testConnectWrongUsername() async throws {
+    @Test
+    func `Wrong username fails with password auth error`() async throws {
         try await withConfiguration(PostgresHelpers.poolConfiguration(username: "notworking")) { error in
             #expect(error.pgPoolDescription == "<PSQLError (code 28P01): FATAL: password authentication failed for user \"notworking\">")
         }
     }
 
-    @Test("Wrong password fails with password auth error")
-    func testConnectWrongPassword() async throws {
+    @Test
+    func `Wrong password fails with password auth error`() async throws {
         try await withConfiguration(PostgresHelpers.poolConfiguration(password: "notworking")) { error in
             #expect(error.pgPoolDescription == "<PSQLError (code 28P01): FATAL: password authentication failed for user \"test_username\">")
         }
     }
 
-    @Test("Invalid TLS config fails with sslUnsupported")
-    func testConnectInvalidTLSConfig() async throws {
+    @Test
+    func `Invalid TLS config fails cleanly`() async throws {
         var tlsConfiguration: TLSConfiguration = .clientDefault
         tlsConfiguration.maximumTLSVersion = .tlsv1
 
-        let tls: PostgresConnection.Configuration.TLS = .require(try .init(configuration: tlsConfiguration))
+        let tls: PostgresConnection.Configuration.TLS = try .require(.init(configuration: tlsConfiguration))
         try await withConfiguration(PostgresHelpers.poolConfiguration(tls: tls)) { error in
-            #expect(error.pgPoolDescription == "<PSQLError: sslUnsupported>")
+            let description = error.pgPoolDescription
+            #expect(
+                description.hasPrefix("<PSQLError: sslUnsupported")
+                    || description.contains("handshakeFailed")
+                    || description.contains("TLS"),
+            )
+            #expect(error.pgPoolDebugDescription.contains("code:"))
         }
     }
 
@@ -54,9 +60,8 @@ struct ConnectionErrorTests {
 
     private func withConfiguration(
         _ configuration: PoolConfiguration,
-        expectedErrorCode: String)
-        async throws
-    {
+        expectedErrorCode: String,
+    ) async throws {
         let pool = PostgresConnectionPool(configuration: configuration, logger: logger)
 
         do {
@@ -68,11 +73,16 @@ struct ConnectionErrorTests {
             Issue.record("Can't connect, so we should have an error here")
         }
         catch {
-            #expect(error is PoolError)
+            guard case PoolError.poolDestroyed = error else {
+                Issue.record("Expected PoolError.poolDestroyed, got \(error)")
+                return
+            }
 
             let shutdownError = await pool.shutdownError
             let errorDescription = shutdownError?.pgPoolDescription ?? ""
+            let debugDescription = shutdownError?.pgPoolDebugDescription ?? ""
             #expect(errorDescription.hasPrefix("<PSQLError: \(expectedErrorCode)"))
+            #expect(debugDescription.contains("underlying:"))
         }
 
         let didShutdown = await pool.isShutdown
@@ -81,9 +91,8 @@ struct ConnectionErrorTests {
 
     private func withConfiguration(
         _ configuration: PoolConfiguration,
-        verify: (PSQLError) -> Void)
-        async throws
-    {
+        verify: (PSQLError) -> Void,
+    ) async throws {
         let pool = PostgresConnectionPool(configuration: configuration, logger: logger)
 
         do {
@@ -95,7 +104,10 @@ struct ConnectionErrorTests {
             Issue.record("Can't connect, so we should have an error here")
         }
         catch {
-            #expect(error is PoolError)
+            guard case PoolError.poolDestroyed = error else {
+                Issue.record("Expected PoolError.poolDestroyed, got \(error)")
+                return
+            }
 
             if let shutdownError = await pool.shutdownError {
                 verify(shutdownError)

@@ -8,14 +8,31 @@ import PostgresNIO
 
 enum PostgresHelpers {
 
+    /// Whether the integration tests should run.
+    ///
+    /// Set `POSTGRES_HOSTNAME` to point at a database, or `POSTGRES_TESTS=1`
+    /// for a local database on the default host.
+    static var isAvailable: Bool {
+        env("POSTGRES_HOSTNAME") != nil || env("POSTGRES_TESTS") == "1"
+    }
+
     static func poolConfiguration(
+        applicationName: String = "PoolTests",
         host: String? = nil,
         port: Int? = nil,
         username: String? = nil,
         password: String? = nil,
         database: String? = nil,
         tls: PostgresConnection.Configuration.TLS = .disable,
-        poolSize: Int = 5
+        connectTimeout: TimeInterval = 10.0,
+        connectionRetryInterval: TimeInterval = 0.5,
+        queryTimeout: TimeInterval? = 10.0,
+        poolSize: Int = 5,
+        maxIdleConnections: Int? = 1,
+        defaultHealthCheckEnabled: Bool = true,
+        onOpenConnection: (@Sendable (PostgresConnection, Logger) async throws -> Void)? = nil,
+        onReturnConnection: (@Sendable (PostgresConnection, Logger) async throws -> Void)? = nil,
+        onCloseConnection: (@Sendable (PostgresConnection, Logger) async throws -> Void)? = nil,
     ) -> PoolConfiguration {
         let postgresConfiguration = PostgresConnection.Configuration(
             host: host ?? env("POSTGRES_HOSTNAME") ?? "localhost",
@@ -25,12 +42,17 @@ enum PostgresHelpers {
             database: database ?? env("POSTGRES_DB") ?? "test_database",
             tls: tls)
         return PoolConfiguration(
-            applicationName: "PoolTests",
+            applicationName: applicationName,
             postgresConfiguration: postgresConfiguration,
-            connectTimeout: 10.0,
-            queryTimeout: 10.0,
+            connectTimeout: connectTimeout,
+            connectionRetryInterval: connectionRetryInterval,
+            queryTimeout: queryTimeout,
             poolSize: poolSize,
-            maxIdleConnections: 1)
+            maxIdleConnections: maxIdleConnections,
+            defaultHealthCheckEnabled: defaultHealthCheckEnabled,
+            onOpenConnection: onOpenConnection,
+            onReturnConnection: onReturnConnection,
+            onCloseConnection: onCloseConnection)
     }
 
     private static func env(_ name: String) -> String? {
