@@ -101,6 +101,14 @@ Run without `--lint` to apply the changes.
 The integration tests use the `postgres` service hostname inside the container
 job. Locally they use `localhost` unless `POSTGRES_HOSTNAME` overrides it.
 
+## Failure behavior
+
+Transient connection failures fail the request but keep the pool alive and apply
+`connectionRetryInterval` before the next attempt. Authentication, invalid
+database names and TLS configuration errors shut the pool down. Tests for both
+paths live in `ConnectionErrorTests`; the cooldown is covered in
+`PoolLifecycleTests`.
+
 ## Test design
 
 - Prefer deterministic tests over sleeps. Use the `Signal` helper for

@@ -22,34 +22,34 @@ public actor PostgresConnectionPool {
     private let eventLoopGroup: EventLoopGroup
 
     /// The logger used by this pool and its connections.
-    public nonisolated let logger: Logger
+    nonisolated public let logger: Logger
 
     /// The underlying `PostgresConnection.Configuration` used when opening new connections.
-    public nonisolated let postgresConfiguration: PostgresConnection.Configuration
+    nonisolated public let postgresConfiguration: PostgresConnection.Configuration
 
     /// A sanitized application name sent to PostgreSQL (max 32 characters).
-    public nonisolated let connectionName: String
+    nonisolated public let connectionName: String
 
     /// A human-readable description of the connection target (e.g. `user@host:port/database`).
-    public nonisolated let poolName: String
+    nonisolated public let poolName: String
 
     /// The maximum number of open connections the pool will maintain.
-    public nonisolated let poolSize: Int
+    nonisolated public let poolSize: Int
 
     /// The time to wait before retrying a failed connection attempt.
-    public nonisolated let connectionRetryInterval: TimeInterval
+    nonisolated public let connectionRetryInterval: TimeInterval
 
     /// The maximum number of idle connections, or `nil` for unlimited.
-    public nonisolated let maxIdleConnections: Int?
+    nonisolated public let maxIdleConnections: Int?
 
     /// The timeout for individual queries, or `nil` for no timeout.
-    public nonisolated let queryTimeout: TimeInterval?
+    nonisolated public let queryTimeout: TimeInterval?
 
     /// How often the pool checks idle connections and pending requests.
-    public nonisolated let maintenanceInterval: TimeInterval
+    nonisolated public let maintenanceInterval: TimeInterval
 
     /// The rolling window used to decide how many idle connections to keep.
-    public nonisolated let idleConnectionsCheckInterval: TimeInterval
+    nonisolated public let idleConnectionsCheckInterval: TimeInterval
 
     private let onOpenConnection: ((PostgresConnection, Logger) async throws -> Void)?
     private let onReturnConnection: ((PostgresConnection, Logger) async throws -> Void)?
@@ -61,7 +61,7 @@ public actor PostgresConnectionPool {
     private var inUseConnectionCounts: Deque<Int> = []
 
     private var maintenanceTask: Task<Void, Never>?
-    private var retryTask: Task<Void, Never>?
+    private var nextConnectionAttempt = Date.distantPast
 
     public private(set) var isShutdown = false
     public private(set) var shutdownError: PSQLError?
@@ -190,6 +190,9 @@ public actor PostgresConnectionPool {
         batchId: Int? = nil,
     ) async throws -> PoolConnection {
         guard isShutdown == false else { throw PoolError.poolDestroyed(shutdownError) }
+        guard Date() >= nextConnectionAttempt || available.isNotEmpty else {
+            throw PoolError.connectionFailed
+        }
 
         let poolContinuationID = UUID()
 
@@ -323,9 +326,6 @@ public actor PostgresConnectionPool {
 
         maintenanceTask?.cancel()
         maintenanceTask = nil
-
-        retryTask?.cancel()
-        retryTask = nil
 
         // Cancel all waiting continuations. Requests waiting when a fatal
         // connection error occurs receive `poolDestroyed` so callers can
@@ -648,6 +648,11 @@ public actor PostgresConnectionPool {
             return
         }
 
+        guard Date() >= nextConnectionAttempt else {
+            failWaitingRequests(with: .connectionFailed)
+            return
+        }
+
         connections.removeAll(where: { connection in
             connection.state == .closed
                 || (connection.state != .connecting && connection.connection?.isClosed ?? false)
@@ -685,13 +690,14 @@ public actor PostgresConnectionPool {
                 try? await connection.close()
 
                 logger.warning("[\(poolName)] Connection \(poolConnection.id) setup failed: \(String(reflecting: error))")
-                scheduleOpenConnectionRetry()
+                await handleTransientConnectionFailure()
 
                 return
             }
 
             poolConnection.connection = connection
             poolConnection.state = .available
+            nextConnectionAttempt = .distantPast
             available.append(poolConnection)
 
             await handleNextContinuation()
@@ -707,7 +713,7 @@ public actor PostgresConnectionPool {
             // unsupported TLS setup forever; shut the pool down so callers can
             // replace it.
             if let psqlError = error as? PSQLError,
-               Self.isFatalConnectionError(psqlError)
+               Self.isPermanentConnectionError(psqlError)
             {
                 logger.error(logMessage)
                 await shutdown(withError: psqlError)
@@ -715,26 +721,33 @@ public actor PostgresConnectionPool {
             }
 
             logger.warning(logMessage)
-            scheduleOpenConnectionRetry()
+            await handleTransientConnectionFailure()
         }
     }
 
     /// Whether a connection error is permanent for this configuration.
-    private static func isFatalConnectionError(_ error: PSQLError) -> Bool {
+    ///
+    /// Network failures, server restarts and connection resets are transient:
+    /// they fail the current request, leave the pool alive and apply a short
+    /// cooldown before the next attempt. Authentication, TLS and protocol
+    /// configuration errors cannot recover without operator action.
+    private static func isPermanentConnectionError(_ error: PSQLError) -> Bool {
+        if let underlying = error.underlying {
+            let description = String(reflecting: underlying).lowercased()
+            if description.contains("ssl") || description.contains("tls") || description.contains("handshake") {
+                return true
+            }
+        }
+
         switch error.code {
         case .authMechanismRequiresPassword,
-             .clientClosedConnection,
-             .connectionError,
              .failedToAddSSLHandler,
              .invalidCommandTag,
              .messageDecodingFailure,
-             .queryCancelled,
              .receivedUnencryptedDataAfterSSLRequest,
              .saslError,
-             .serverClosedConnection,
              .sslUnsupported,
              .tooManyParameters,
-             .uncleanShutdown,
              .unexpectedBackendMessage,
              .unsupportedAuthMechanism:
             return true
@@ -747,8 +760,9 @@ public actor PostgresConnectionPool {
            let code = serverInfo[.sqlState]
         {
             switch PostgresError.Code(raw: code) {
-            case .adminShutdown,
+            case .insufficientPrivilege,
                  .invalidAuthorizationSpecification,
+                 .invalidCatalogName,
                  .invalidName,
                  .invalidPassword:
                 return true
@@ -761,29 +775,32 @@ public actor PostgresConnectionPool {
         return false
     }
 
-    /// Schedules one delayed connection attempt. A single retry task prevents a
-    /// failed database from producing an unbounded storm of connection tasks.
-    private func scheduleOpenConnectionRetry() {
-        guard isShutdown == false, retryTask == nil else { return }
+    /// Fails waiting requests and prevents a retry storm after a transient
+    /// connection failure. A later request will try again after the cooldown.
+    private func handleTransientConnectionFailure() async {
+        nextConnectionAttempt = Date(timeIntervalSinceNow: connectionRetryInterval)
 
-        let delay = connectionRetryInterval
-        retryTask = Task { [weak self] in
-            if delay > 0 {
-                try? await Task.sleep(for: .seconds(delay))
-            }
-
-            guard Task.isCancelled == false else { return }
-
-            await self?.runScheduledOpenConnection()
+        if available.isNotEmpty {
+            await handleNextContinuation()
+        }
+        else {
+            failWaitingRequests(with: .connectionFailed)
         }
     }
 
-    private func runScheduledOpenConnection() async {
-        retryTask = nil
+    /// Resumes all queued requests with the given error.
+    private func failWaitingRequests(with error: PoolError) {
+        let waiting = continuations
+        continuations.removeAll()
 
-        guard isShutdown == false else { return }
-
-        await openConnection()
+        for poolContinuation in waiting {
+            if poolContinuation.cancellation.isCancelled {
+                poolContinuation.continuation.resume(throwing: PoolError.cancelled)
+            }
+            else {
+                poolContinuation.continuation.resume(throwing: error)
+            }
+        }
     }
 
 }

@@ -21,7 +21,7 @@ public struct PoolInfo: Sendable {
         public let usageCounter: Int
 
         /// The optional batch ID associated with this connection.
-        public var batchId: Int?
+        public let batchId: Int?
 
         /// The SQL text of the currently running query, if any.
         public let query: String?

@@ -46,14 +46,14 @@ extension PoolError: CustomStringConvertible {
 
         case let .poolDestroyed(psqlError):
             if let psqlError {
-                "<PoolError: poolDestroyed=\(psqlError.description)>"
+                "<PoolError: poolDestroyed=\(psqlError.pgPoolDescription)>"
             }
             else {
                 "<PoolError: poolDestroyed>"
             }
 
         case let .postgresError(psqlError):
-            "<PoolError: postgresError=\(psqlError.description)>"
+            "<PoolError: postgresError=\(psqlError.pgPoolDescription)>"
 
         case .queryCancelled:
             "<PoolError: queryCancelled>"
@@ -91,14 +91,14 @@ extension PoolError: CustomDebugStringConvertible {
 
         case let .poolDestroyed(psqlError):
             if let psqlError {
-                "<PoolError: poolDestroyed=\(psqlError.debugDescription)>"
+                "<PoolError: poolDestroyed=\(psqlError.pgPoolDebugDescription)>"
             }
             else {
                 "<PoolError: poolDestroyed>"
             }
 
         case let .postgresError(psqlError):
-            "<PoolError: postgresError=\(psqlError.debugDescription)>"
+            "<PoolError: postgresError=\(psqlError.pgPoolDebugDescription)>"
 
         case let .queryCancelled(query: query, runtime: runtime):
             "<PoolError: query '\(query)' cancelled after \(runtime.rounded(toPlaces: 3))s>"

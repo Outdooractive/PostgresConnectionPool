@@ -27,6 +27,11 @@ and this project adheres to semantic versioning.
 
 ### Changed
 
+- Transient connection failures (DNS, refused/reset connections, server restart,
+  too many clients) now fail the current request and keep the pool alive. A
+  `connectionRetryInterval` cooldown prevents retry storms before the next
+  attempt. Authentication, invalid database name and TLS configuration errors
+  still shut the pool down.
 - The pool now uses `PostgresConnection.defaultEventLoopGroup` by default
   instead of creating `poolSize * 2` threads per pool. A dedicated event loop
   group can still be injected, and the pool no longer owns or shuts it down.
