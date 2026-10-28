@@ -70,7 +70,8 @@ documentation commands. CI runs macOS unit tests, Linux tests against PostgreSQL
 idle timeout and ServiceLifecycle integration. This package additionally provides
 batch cancellation, per-connection diagnostics and connection hooks. A future major
 version may be rebuilt on `PostgresClient`; do not assume the custom pool can be
-removed without preserving those features.
+removed without preserving those features. See `POSTGRES_CLIENT_EVALUATION.md` for
+the comparison, prototype findings and the decision to keep the custom pool for 1.x.
 
 ## Code style conventions
 

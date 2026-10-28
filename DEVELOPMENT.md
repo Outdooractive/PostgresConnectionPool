@@ -126,6 +126,11 @@ paths live in `ConnectionErrorTests`; the cooldown is covered in
 
 `PostgresNIO.PostgresClient` is the upstream connection pool. This package keeps
 its own pool because it adds batch cancellation, per-connection diagnostics and
-connection hooks that `PostgresClient` does not expose. Any future replacement
-must preserve those features or provide a migration path. See the README for the
-current trade-offs.
+connection hooks that `PostgresClient` does not expose. The evaluation,
+prototype findings and the decision to keep the custom pool for 1.x are in
+[POSTGRES_CLIENT_EVALUATION.md](POSTGRES_CLIENT_EVALUATION.md). Evaluation tests
+run with:
+
+```bash
+POSTGRES_TESTS=1 swift test --filter PostgresClientEvaluationTests
+```

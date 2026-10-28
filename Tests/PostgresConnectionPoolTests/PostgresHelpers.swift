@@ -55,6 +55,25 @@ enum PostgresHelpers {
             onCloseConnection: onCloseConnection)
     }
 
+    static func postgresClientConfiguration(
+        maximumConnections: Int = 2,
+        additionalStartupParameters: [(String, String)] = [],
+    ) -> PostgresClient.Configuration {
+        var configuration = PostgresClient.Configuration(
+            host: env("POSTGRES_HOSTNAME") ?? "localhost",
+            port: env("POSTGRES_PORT").flatMap(Int.init(_:)) ?? 5432,
+            username: env("POSTGRES_USER") ?? "test_username",
+            password: env("POSTGRES_PASSWORD") ?? "test_password",
+            database: env("POSTGRES_DB") ?? "test_database",
+            tls: .disable)
+        configuration.options.minimumConnections = 0
+        configuration.options.maximumConnections = maximumConnections
+        configuration.options.keepAliveBehavior = nil
+        configuration.options.connectionIdleTimeout = .seconds(1)
+        configuration.options.additionalStartupParameters = additionalStartupParameters
+        return configuration
+    }
+
     private static func env(_ name: String) -> String? {
         getenv(name).flatMap { String(cString: $0) }
     }

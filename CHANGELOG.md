@@ -21,6 +21,9 @@ and this project adheres to semantic versioning.
 - `PoolInfo.waitingRequests` and batch-filtered connection counts.
 - `PostgresConnectionWrapper.isValid` and explicit invalidation after the
   connection callback returns.
+- `POSTGRES_CLIENT_EVALUATION.md` and evaluation tests documenting why the
+  package keeps its custom pool for 1.x instead of rebuilding on
+  `PostgresNIO.PostgresClient`.
 - Tests for waiting requests, cancellation, batch cancellation, shutdown,
   query timeouts, connection hooks, wrapper lifetime, idle culling, error
   descriptions, Unicode regex handling and all pool failure paths.
