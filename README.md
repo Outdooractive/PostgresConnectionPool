@@ -13,7 +13,7 @@ Swift 6.3 or higher (Xcode 16+), macOS 15+ or Linux. PostgreSQL 18 or newer is s
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/Outdooractive/PostgresConnectionPool.git", from: "1.0.0"),
+    .package(url: "https://github.com/Outdooractive/PostgresConnectionPool.git", from: "1.1.0"),
 ],
 targets: [
     .target(name: "MyTarget", dependencies: [
