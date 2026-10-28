@@ -5,6 +5,15 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to semantic versioning.
 
+## Unreleased
+
+### Fixed
+
+- A connection that finished opening while the pool was shutting down is now
+  closed and discarded instead of being published to the pool after shutdown.
+  Releasing the pool could previously trap in PostgresNIO with
+  `PostgresConnection deinitialized before being closed`.
+
 ## 1.1.0 - 2026-10-28
 
 ### Added
