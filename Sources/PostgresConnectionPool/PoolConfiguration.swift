@@ -17,7 +17,11 @@ public struct PoolConfiguration: Sendable {
     /// Timeout for opening new connections (default: 5 seconds).
     public let connectTimeout: TimeInterval
 
-    /// Time to wait before retrying a failed connection attempt (default: 0.5 seconds).
+    /// Minimum time before a new connection attempt after a transient failure (default: 0.5 seconds).
+    ///
+    /// A transient failure fails the current request and keeps the pool alive.
+    /// Requests arriving during the cooldown fail fast; the next request after
+    /// the cooldown triggers a fresh connection attempt.
     public let connectionRetryInterval: TimeInterval
 
     /// Timeout for individual database queries. `nil` means no timeout.
@@ -62,7 +66,8 @@ public struct PoolConfiguration: Sendable {
     ///   - applicationName: The name used for database connections and the default logger.
     ///   - postgresConfiguration: Connection parameters to the database.
     ///   - connectTimeout: Timeout for opening new connections (default: 5 seconds).
-    ///   - connectionRetryInterval: Time to wait before retrying a failed connection attempt (default: 0.5 seconds).
+    ///   - connectionRetryInterval: Minimum time before a new connection attempt after a transient failure
+    ///     (default: 0.5 seconds).
     ///   - queryTimeout: Timeout for individual database queries. `nil` means no timeout.
     ///   - poolSize: The maximum number of open connections (default: 10).
     ///   - maxIdleConnections: The maximum number of idle connections to keep open.

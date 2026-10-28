@@ -372,11 +372,11 @@ struct PoolLifecycleTests {
     }
 
     @Test(.timeLimit(.minutes(1)))
-    func `failing open hook is retried`() async throws {
+    func `transient connection failure keeps the pool alive and applies a cooldown`() async throws {
         let calls = Counter()
         let pool = PostgresConnectionPool(
             configuration: PostgresHelpers.poolConfiguration(
-                connectionRetryInterval: 0.1,
+                connectionRetryInterval: 0.2,
                 poolSize: 1,
                 maxIdleConnections: nil,
                 onOpenConnection: { _, _ in
@@ -386,11 +386,48 @@ struct PoolLifecycleTests {
                 }),
             logger: logger)
 
+        do {
+            try await pool.connection { connection in
+                _ = try await connection.query("SELECT 1", logger: logger)
+            }
+            Issue.record("Expected a transient connection failure")
+        }
+        catch {
+            guard case PoolError.connectionFailed = error else {
+                Issue.record("Expected PoolError.connectionFailed, got \(error)")
+                return
+            }
+        }
+
+        #expect(calls.value == 1)
+        #expect(await pool.isShutdown == false)
+        #expect(await pool.shutdownError == nil)
+
+        // During the cooldown a new request fails fast without opening another
+        // connection.
+        do {
+            try await pool.connection { connection in
+                _ = try await connection.query("SELECT 1", logger: logger)
+            }
+            Issue.record("Expected the cooldown to reject the request")
+        }
+        catch {
+            guard case PoolError.connectionFailed = error else {
+                Issue.record("Expected PoolError.connectionFailed, got \(error)")
+                return
+            }
+        }
+
+        #expect(calls.value == 1)
+
+        // After the cooldown the next request retries and succeeds.
+        try await Task.sleep(for: .milliseconds(300))
+
         try await pool.connection { connection in
             _ = try await connection.query("SELECT 1", logger: logger)
         }
 
-        #expect(calls.value >= 2)
+        #expect(calls.value == 2)
 
         await pool.shutdown()
     }

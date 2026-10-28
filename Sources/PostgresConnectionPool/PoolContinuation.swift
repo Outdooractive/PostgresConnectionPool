@@ -29,7 +29,6 @@ final class PoolContinuationCancellation: Sendable {
 final class PoolContinuation: @unchecked Sendable {
 
     let id: UUID
-    let added: Date
     let batchId: Int?
     let cancellation = PoolContinuationCancellation()
     let continuation: PostgresCheckedContinuation
@@ -41,7 +40,6 @@ final class PoolContinuation: @unchecked Sendable {
         continuation: PostgresCheckedContinuation,
     ) {
         self.id = id
-        self.added = Date()
         self.batchId = batchId
         self.continuation = continuation
     }

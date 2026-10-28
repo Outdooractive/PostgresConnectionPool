@@ -15,8 +15,9 @@ Key source areas:
 - **`PostgresConnectionPool.swift`** — Main `actor PostgresConnectionPool`: init, `connection(batchId:_:)`,
   `shutdown()`, `abortBatch(_:)`, `closeIdleConnections()`, `poolInfo(batchId:)`.
   Manages connection lifecycle (open, health check, release, close), cancellation-aware waiting,
-  idle connection culling, a single maintenance task and delayed connection retries. Uses
-  `PostgresConnection.defaultEventLoopGroup` unless a group is injected.
+  idle connection culling, a single maintenance task, and transient/permanent connection
+  failure handling with a retry cooldown. Uses `PostgresConnection.defaultEventLoopGroup`
+  unless a group is injected.
 - **`PoolConfiguration.swift`** — `PoolConfiguration` struct: connection parameters, pool size,
   timeouts, callbacks (`onOpenConnection`, `onReturnConnection`, `onCloseConnection`).
 - **`PoolConnection.swift`** — Internal `PoolConnection` class: connection identity (atomic ID),

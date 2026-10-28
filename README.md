@@ -28,13 +28,23 @@ targets: [
 - **Health checks** — optional default `SELECT 1` before leasing a connection; custom `onReturnConnection` hooks are always honored
 - **Idle connection culling** — close excess idle connections over a rolling window
 - **Query timeout** — set `statement_timeout` per connection
-- **Connection retry** — delayed retries for transient connection failures
+- **Connection cooldown** — transient connection failures fail the request and delay the next attempt; auth/TLS/config errors shut the pool down
 - **Cancellation-aware waiting** — cancelling a request removes it from the queue immediately
 - **Batch cancellation** — abort waiting connection requests for a batch ID
 - **Diagnostics** — per-connection query tracking, usage counters, waiting-request counts and runtime info
 - **PostgresKit integration** — use `connection.sql()` for the `SQLDatabase` API
 - **Listen/Notify support** — `addListener()` and `listen(on:consume:)`
 - **Shared event loop** — reuses `PostgresConnection.defaultEventLoopGroup` by default instead of creating one event loop group per pool
+
+## Failure behavior
+
+- Transient connection failures (DNS, refused connections, connection resets,
+  server shutdown/restart, too many clients) fail the current request, leave the
+  pool alive and apply `connectionRetryInterval` before the next attempt.
+- Authentication, invalid database name and TLS configuration errors shut the
+  pool down and surface `PoolError.poolDestroyed`.
+- A pool that was not shut down permanently continues to serve new requests
+  after the cooldown. Callers can therefore retry at their own level.
 
 ## Usage
 
