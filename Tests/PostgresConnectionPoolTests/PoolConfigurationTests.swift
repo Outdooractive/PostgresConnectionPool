@@ -18,7 +18,7 @@ struct PoolConfigurationTests {
         tls: .disable)
 
     @Test
-    func `Defaults are applied`() {
+    func defaultsAreApplied() {
         let config = PoolConfiguration(
             applicationName: "test",
             postgresConfiguration: postgresConfig)
@@ -36,7 +36,7 @@ struct PoolConfigurationTests {
     }
 
     @Test
-    func `connectTimeout is clamped to minimum 1 second`() {
+    func connectTimeoutIsClampedToMinimum1Second() {
         let config = PoolConfiguration(
             applicationName: "test",
             postgresConfiguration: postgresConfig,
@@ -46,7 +46,7 @@ struct PoolConfigurationTests {
     }
 
     @Test
-    func `connectionRetryInterval allows zero`() {
+    func connectionRetryIntervalAllowsZero() {
         let config = PoolConfiguration(
             applicationName: "test",
             postgresConfiguration: postgresConfig,
@@ -56,7 +56,7 @@ struct PoolConfigurationTests {
     }
 
     @Test
-    func `queryTimeout is clamped to minimum 1 second`() throws {
+    func queryTimeoutIsClampedToMinimum1Second() throws {
         let config = PoolConfiguration(
             applicationName: "test",
             postgresConfiguration: postgresConfig,
@@ -66,7 +66,7 @@ struct PoolConfigurationTests {
     }
 
     @Test
-    func `poolSize is clamped to minimum 1`() {
+    func poolSizeIsClampedToMinimum1() {
         let config = PoolConfiguration(
             applicationName: "test",
             postgresConfiguration: postgresConfig,
@@ -76,7 +76,7 @@ struct PoolConfigurationTests {
     }
 
     @Test
-    func `maxIdleConnections allows zero`() {
+    func maxIdleConnectionsAllowsZero() {
         let config = PoolConfiguration(
             applicationName: "test",
             postgresConfiguration: postgresConfig,
@@ -86,7 +86,7 @@ struct PoolConfigurationTests {
     }
 
     @Test
-    func `maxIdleConnections is clamped to minimum 0`() throws {
+    func maxIdleConnectionsIsClampedToMinimum0() throws {
         let config = PoolConfiguration(
             applicationName: "test",
             postgresConfiguration: postgresConfig,
@@ -96,7 +96,7 @@ struct PoolConfigurationTests {
     }
 
     @Test
-    func `onReturnConnection default runs SELECT 1`() {
+    func onReturnConnectionDefaultRunsSelect1() {
         let config = PoolConfiguration(
             applicationName: "test",
             postgresConfiguration: postgresConfig)
@@ -106,7 +106,7 @@ struct PoolConfigurationTests {
     }
 
     @Test
-    func `Explicit nil callbacks are accepted`() {
+    func explicitNilCallbacksAreAccepted() {
         let config = PoolConfiguration(
             applicationName: "test",
             postgresConfiguration: postgresConfig,
@@ -120,7 +120,7 @@ struct PoolConfigurationTests {
     }
 
     @Test
-    func `Health check can be disabled`() {
+    func healthCheckCanBeDisabled() {
         let config = PoolConfiguration(
             applicationName: "test",
             postgresConfiguration: postgresConfig,
@@ -131,7 +131,7 @@ struct PoolConfigurationTests {
     }
 
     @Test
-    func `Custom return hook is kept when the default health check is disabled`() {
+    func customReturnHookIsKeptWhenTheDefaultHealthCheckIsDisabled() {
         let config = PoolConfiguration(
             applicationName: "test",
             postgresConfiguration: postgresConfig,

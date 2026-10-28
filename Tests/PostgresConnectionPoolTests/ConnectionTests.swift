@@ -16,7 +16,7 @@ struct ConnectionTests {
     }()
 
     @Test
-    func `Can connect and execute a query`() async throws {
+    func canConnectAndExecuteAQuery() async throws {
         let pool = PostgresConnectionPool(configuration: PostgresHelpers.poolConfiguration(), logger: logger)
 
         try await pool.connection { connection in
@@ -29,7 +29,7 @@ struct ConnectionTests {
     }
 
     @Test
-    func `Pool info reflects state correctly`() async throws {
+    func poolInfoReflectsStateCorrectly() async throws {
         let pool = PostgresConnectionPool(configuration: PostgresHelpers.poolConfiguration(), logger: logger)
 
         let poolInfoBefore = await pool.poolInfo()
@@ -76,7 +76,7 @@ struct ConnectionTests {
     }
 
     @Test
-    func `Pool with 20 connections handles 2000 queries`() async throws {
+    func poolWith20ConnectionsHandles2000Queries() async throws {
         let pool = PostgresConnectionPool(configuration: PostgresHelpers.poolConfiguration(poolSize: 20), logger: logger)
 
         let start = 1

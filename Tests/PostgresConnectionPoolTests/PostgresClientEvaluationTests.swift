@@ -80,7 +80,7 @@ struct PostgresClientEvaluationTests {
     }
 
     @Test(.timeLimit(.minutes(1)))
-    func `leases connections and runs queries`() async throws {
+    func leasesConnectionsAndRunsQueries() async throws {
         try await withClient(PostgresHelpers.postgresClientConfiguration()) { client in
             try await client.withConnection { connection in
                 let rows = try await connection.query("SELECT 1 AS value", logger: logger)
@@ -94,7 +94,7 @@ struct PostgresClientEvaluationTests {
     }
 
     @Test(.timeLimit(.minutes(1)))
-    func `query releases its lease when consumed`() async throws {
+    func queryReleasesItsLeaseWhenConsumed() async throws {
         try await withClient(PostgresHelpers.postgresClientConfiguration(maximumConnections: 1)) { client in
             for _ in 0 ..< 3 {
                 let rows = try await client.query("SELECT 1", logger: logger)
@@ -104,7 +104,7 @@ struct PostgresClientEvaluationTests {
     }
 
     @Test(.timeLimit(.minutes(1)))
-    func `cancelling a waiting lease terminates the waiter`() async throws {
+    func cancellingAWaitingLeaseTerminatesTheWaiter() async throws {
         try await withClient(PostgresHelpers.postgresClientConfiguration(maximumConnections: 1)) { client in
             let entered = Signal()
             let release = Signal()
@@ -145,7 +145,7 @@ struct PostgresClientEvaluationTests {
     }
 
     @Test(.timeLimit(.minutes(1)))
-    func `startup parameters apply to physical connections`() async throws {
+    func startupParametersApplyToPhysicalConnections() async throws {
         let configuration = PostgresHelpers.postgresClientConfiguration(
             additionalStartupParameters: [
                 ("application_name", "PostgresClientEvaluation"),
@@ -167,7 +167,7 @@ struct PostgresClientEvaluationTests {
     }
 
     @Test(.timeLimit(.minutes(1)))
-    func `cancelling run returns before active leases finish`() async throws {
+    func cancellingRunReturnsBeforeActiveLeasesFinish() async throws {
         let client = PostgresClient(
             configuration: PostgresHelpers.postgresClientConfiguration(maximumConnections: 1),
             backgroundLogger: logger)

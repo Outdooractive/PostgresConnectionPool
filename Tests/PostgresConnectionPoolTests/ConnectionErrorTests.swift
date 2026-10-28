@@ -16,31 +16,31 @@ struct ConnectionErrorTests {
     }()
 
     @Test
-    func `Wrong host fails transiently and keeps the pool alive`() async throws {
+    func wrongHostFailsTransientlyAndKeepsThePoolAlive() async throws {
         try await withTransientConfiguration(PostgresHelpers.poolConfiguration(host: "notworking"))
     }
 
     @Test
-    func `Wrong port fails transiently and keeps the pool alive`() async throws {
+    func wrongPortFailsTransientlyAndKeepsThePoolAlive() async throws {
         try await withTransientConfiguration(PostgresHelpers.poolConfiguration(port: 99999))
     }
 
     @Test
-    func `Wrong username fails permanently`() async throws {
+    func wrongUsernameFailsPermanently() async throws {
         try await withPermanentConfiguration(PostgresHelpers.poolConfiguration(username: "notworking")) { error in
             #expect(error.pgPoolDescription == "<PSQLError (code 28P01): FATAL: password authentication failed for user \"notworking\">")
         }
     }
 
     @Test
-    func `Wrong password fails permanently`() async throws {
+    func wrongPasswordFailsPermanently() async throws {
         try await withPermanentConfiguration(PostgresHelpers.poolConfiguration(password: "notworking")) { error in
             #expect(error.pgPoolDescription == "<PSQLError (code 28P01): FATAL: password authentication failed for user \"test_username\">")
         }
     }
 
     @Test
-    func `Invalid TLS config fails permanently`() async throws {
+    func invalidTlsConfigFailsPermanently() async throws {
         var tlsConfiguration: TLSConfiguration = .clientDefault
         tlsConfiguration.maximumTLSVersion = .tlsv1
 

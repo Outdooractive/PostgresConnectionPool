@@ -121,7 +121,7 @@ struct PoolLifecycleTests {
     // MARK: - Waiting and cancellation
 
     @Test(.timeLimit(.minutes(1)))
-    func `waiting requests are reported`() async throws {
+    func waitingRequestsAreReported() async throws {
         let pool = PostgresConnectionPool(
             configuration: PostgresHelpers.poolConfiguration(poolSize: 1, maxIdleConnections: nil),
             logger: logger)
@@ -158,7 +158,7 @@ struct PoolLifecycleTests {
     }
 
     @Test(.timeLimit(.minutes(1)))
-    func `cancelling A waiting request removes it`() async throws {
+    func cancellingWaitingRequestRemovesIt() async throws {
         let pool = PostgresConnectionPool(
             configuration: PostgresHelpers.poolConfiguration(poolSize: 1, maxIdleConnections: nil),
             logger: logger)
@@ -202,7 +202,7 @@ struct PoolLifecycleTests {
     }
 
     @Test(.timeLimit(.minutes(1)))
-    func `abort batch cancels only matching requests`() async throws {
+    func abortBatchCancelsOnlyMatchingRequests() async throws {
         let pool = PostgresConnectionPool(
             configuration: PostgresHelpers.poolConfiguration(poolSize: 1, maxIdleConnections: nil),
             logger: logger)
@@ -254,7 +254,7 @@ struct PoolLifecycleTests {
     }
 
     @Test(.timeLimit(.minutes(1)))
-    func `shutdown cancels waiting requests`() async throws {
+    func shutdownCancelsWaitingRequests() async throws {
         let pool = PostgresConnectionPool(
             configuration: PostgresHelpers.poolConfiguration(poolSize: 1, maxIdleConnections: nil),
             logger: logger)
@@ -301,7 +301,7 @@ struct PoolLifecycleTests {
     // MARK: - Timeouts and hooks
 
     @Test(.timeLimit(.minutes(1)))
-    func `query timeout is mapped to query cancelled`() async throws {
+    func queryTimeoutIsMappedToQueryCancelled() async throws {
         let pool = PostgresConnectionPool(
             configuration: PostgresHelpers.poolConfiguration(
                 queryTimeout: 1.0,
@@ -327,7 +327,7 @@ struct PoolLifecycleTests {
     }
 
     @Test(.timeLimit(.minutes(1)))
-    func `custom return hook runs when the default health check is disabled`() async throws {
+    func customReturnHookRunsWhenTheDefaultHealthCheckIsDisabled() async throws {
         let calls = Counter()
         let pool = PostgresConnectionPool(
             configuration: PostgresHelpers.poolConfiguration(
@@ -349,7 +349,7 @@ struct PoolLifecycleTests {
     }
 
     @Test(.timeLimit(.minutes(1)))
-    func `failing return hook is retried once`() async throws {
+    func failingReturnHookIsRetriedOnce() async throws {
         let calls = Counter()
         let pool = PostgresConnectionPool(
             configuration: PostgresHelpers.poolConfiguration(
@@ -372,7 +372,7 @@ struct PoolLifecycleTests {
     }
 
     @Test(.timeLimit(.minutes(1)))
-    func `transient connection failure keeps the pool alive and applies a cooldown`() async throws {
+    func transientConnectionFailureKeepsThePoolAliveAndAppliesACooldown() async throws {
         let calls = Counter()
         let pool = PostgresConnectionPool(
             configuration: PostgresHelpers.poolConfiguration(
@@ -433,7 +433,7 @@ struct PoolLifecycleTests {
     }
 
     @Test(.timeLimit(.minutes(1)))
-    func `connection wrapper is invalidated after the callback`() async throws {
+    func connectionWrapperIsInvalidatedAfterTheCallback() async throws {
         let pool = PostgresConnectionPool(
             configuration: PostgresHelpers.poolConfiguration(poolSize: 1, maxIdleConnections: nil),
             logger: logger)
@@ -457,7 +457,7 @@ struct PoolLifecycleTests {
     }
 
     @Test(.timeLimit(.minutes(1)))
-    func `postgres errors are mapped and described`() async throws {
+    func postgresErrorsAreMappedAndDescribed() async throws {
         let pool = PostgresConnectionPool(
             configuration: PostgresHelpers.poolConfiguration(poolSize: 1, maxIdleConnections: nil),
             logger: logger)
@@ -493,7 +493,7 @@ struct PoolLifecycleTests {
     // MARK: - Metadata and callbacks
 
     @Test(.timeLimit(.minutes(1)))
-    func `pool metadata and default logger`() async {
+    func poolMetadataAndDefaultLogger() async {
         let pool = PostgresConnectionPool(
             configuration: PostgresHelpers.poolConfiguration(poolSize: 1),
             logger: nil)
@@ -508,7 +508,7 @@ struct PoolLifecycleTests {
     }
 
     @Test(.timeLimit(.minutes(1)))
-    func `application name is sanitized and truncated`() async {
+    func applicationNameIsSanitizedAndTruncated() async {
         let pool = PostgresConnectionPool(
             configuration: PostgresHelpers.poolConfiguration(
                 applicationName: "My App! With @ Symbols And A Very Long Name 1234567890",
@@ -524,7 +524,7 @@ struct PoolLifecycleTests {
     }
 
     @Test(.timeLimit(.minutes(1)))
-    func `unix socket pool name`() async {
+    func unixSocketPoolName() async {
         let postgresConfiguration = PostgresConnection.Configuration(
             unixSocketPath: "/tmp/.s.PGSQL.5432",
             username: "user",
@@ -542,7 +542,7 @@ struct PoolLifecycleTests {
     }
 
     @Test(.timeLimit(.minutes(1)))
-    func `onClose callback runs`() async throws {
+    func onCloseCallbackRuns() async throws {
         let calls = Counter()
         let pool = PostgresConnectionPool(
             configuration: PostgresHelpers.poolConfiguration(
@@ -563,7 +563,7 @@ struct PoolLifecycleTests {
     }
 
     @Test(.timeLimit(.minutes(1)))
-    func `self-cancelled request is rejected`() async throws {
+    func selfCancelledRequestIsRejected() async throws {
         let pool = PostgresConnectionPool(
             configuration: PostgresHelpers.poolConfiguration(poolSize: 1, maxIdleConnections: nil),
             logger: logger)
@@ -589,7 +589,7 @@ struct PoolLifecycleTests {
     }
 
     @Test(.timeLimit(.minutes(1)))
-    func `wrapper exposes logger, sql and listeners`() async throws {
+    func wrapperExposesLoggerSqlAndListeners() async throws {
         let pool = PostgresConnectionPool(
             configuration: PostgresHelpers.poolConfiguration(poolSize: 1, maxIdleConnections: nil),
             logger: logger)
@@ -614,7 +614,7 @@ struct PoolLifecycleTests {
     }
 
     @Test(.timeLimit(.minutes(1)))
-    func `custom callback error is rethrown`() async throws {
+    func customCallbackErrorIsRethrown() async throws {
         let pool = PostgresConnectionPool(
             configuration: PostgresHelpers.poolConfiguration(poolSize: 1, maxIdleConnections: nil),
             logger: logger)
@@ -633,7 +633,7 @@ struct PoolLifecycleTests {
     }
 
     @Test(.timeLimit(.minutes(1)))
-    func `failing return hook eventually fails the request`() async throws {
+    func failingReturnHookEventuallyFailsTheRequest() async throws {
         let pool = PostgresConnectionPool(
             configuration: PostgresHelpers.poolConfiguration(
                 poolSize: 1,
@@ -660,7 +660,7 @@ struct PoolLifecycleTests {
     }
 
     @Test(.timeLimit(.minutes(1)))
-    func `failing return hook retries with another idle connection`() async throws {
+    func failingReturnHookRetriesWithAnotherIdleConnection() async throws {
         let calls = Counter()
         let pool = PostgresConnectionPool(
             configuration: PostgresHelpers.poolConfiguration(
@@ -707,7 +707,7 @@ struct PoolLifecycleTests {
     }
 
     @Test(.timeLimit(.minutes(1)))
-    func `throwing close hook still closes the connection`() async throws {
+    func throwingCloseHookStillClosesTheConnection() async throws {
         let pool = PostgresConnectionPool(
             configuration: PostgresHelpers.poolConfiguration(
                 poolSize: 1,
@@ -727,7 +727,7 @@ struct PoolLifecycleTests {
     }
 
     @Test(.timeLimit(.minutes(1)))
-    func `cancellation after checkout releases the connection`() async throws {
+    func cancellationAfterCheckoutReleasesTheConnection() async throws {
         let box = TaskBox()
         let start = Signal()
         let callbackRan = Counter()
@@ -771,7 +771,7 @@ struct PoolLifecycleTests {
     // MARK: - Idle culling
 
     @Test(.timeLimit(.minutes(1)))
-    func `idle connections are culled`() async throws {
+    func idleConnectionsAreCulled() async throws {
         let pool = PostgresConnectionPool(
             configuration: PostgresHelpers.poolConfiguration(
                 poolSize: 4,
