@@ -372,6 +372,44 @@ struct PoolLifecycleTests {
     }
 
     @Test(.timeLimit(.minutes(1)))
+    func shutdownWhileOpeningAConnectionClosesTheConnection() async throws {
+        let entered = Signal()
+        let release = Signal()
+
+        let pool = PostgresConnectionPool(
+            configuration: PostgresHelpers.poolConfiguration(
+                poolSize: 1,
+                maxIdleConnections: nil,
+                onOpenConnection: { _, _ in
+                    entered.send()
+                    await release.wait()
+                }),
+            logger: logger)
+
+        let request = Task {
+            try await pool.connection { connection in
+                _ = try await connection.query("SELECT 1", logger: logger)
+            }
+        }
+
+        await entered.wait()
+        await pool.shutdown()
+        release.send()
+
+        do {
+            try await request.value
+            Issue.record("Expected shutdown cancellation")
+        }
+        catch {
+            expectCancelled(error)
+        }
+
+        let info = await pool.poolInfo()
+        #expect(info.isShutdown)
+        #expect(info.openConnections == 0)
+    }
+
+    @Test(.timeLimit(.minutes(1)))
     func transientConnectionFailureKeepsThePoolAliveAndAppliesACooldown() async throws {
         let calls = Counter()
         let pool = PostgresConnectionPool(
