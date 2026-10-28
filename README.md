@@ -112,6 +112,8 @@ This package still provides features `PostgresClient` does not expose directly:
 
 A future major version may be rebuilt on top of `PostgresClient` while preserving those
 features. Until then, this package keeps its own pool implementation and its public API.
+See [POSTGRES_CLIENT_EVALUATION.md](POSTGRES_CLIENT_EVALUATION.md) for the feature
+comparison, prototype findings and the decision to keep the custom pool for 1.x.
 
 ## Development
 
