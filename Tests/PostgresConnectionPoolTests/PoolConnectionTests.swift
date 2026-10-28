@@ -10,20 +10,20 @@ import Testing
 struct PoolConnectionTests {
 
     @Test
-    func `IDs are unique and incrementing`() {
+    func iDsAreUniqueAndIncrementing() {
         let c1 = PoolConnection()
         let c2 = PoolConnection()
         #expect(c2.id > c1.id)
     }
 
     @Test
-    func `Initial state is connecting`() {
+    func initialStateIsConnecting() {
         let connection = PoolConnection()
         #expect(connection.state == .connecting)
     }
 
     @Test
-    func `State transitions to active increment usage counter`() {
+    func stateTransitionsToActiveIncrementUsageCounter() {
         let connection = PoolConnection()
         let before = connection.usageCounter.load(ordering: .relaxed)
         connection.state = .active(Date())
@@ -32,7 +32,7 @@ struct PoolConnectionTests {
     }
 
     @Test
-    func `State transitions to available does not increment usage`() {
+    func stateTransitionsToAvailableDoesNotIncrementUsage() {
         let connection = PoolConnection()
         let before = connection.usageCounter.load(ordering: .relaxed)
         connection.state = .available
@@ -40,7 +40,7 @@ struct PoolConnectionTests {
     }
 
     @Test
-    func `State transitions to closed does not increment usage`() {
+    func stateTransitionsToClosedDoesNotIncrementUsage() {
         let connection = PoolConnection()
         let before = connection.usageCounter.load(ordering: .relaxed)
         connection.state = .closed
@@ -48,7 +48,7 @@ struct PoolConnectionTests {
     }
 
     @Test
-    func `Setting query sets queryStartTimestamp`() {
+    func settingQuerySetsQueryStartTimestamp() {
         let connection = PoolConnection()
         #expect(connection.query == nil)
         #expect(connection.queryRuntime == nil)
@@ -63,7 +63,7 @@ struct PoolConnectionTests {
     }
 
     @Test
-    func `Equality by id`() {
+    func equalityById() {
         // PoolConnection ids are globally unique, so two instances are never equal.
         let c1 = PoolConnection()
         let c2 = PoolConnection()
@@ -72,7 +72,7 @@ struct PoolConnectionTests {
     }
 
     @Test
-    func `Consecutive active transitions each increment usage`() {
+    func consecutiveActiveTransitionsEachIncrementUsage() {
         let connection = PoolConnection()
         connection.state = .active(Date())
         connection.state = .available

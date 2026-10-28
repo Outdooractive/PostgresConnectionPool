@@ -10,7 +10,7 @@ import Testing
 struct PoolInfoTests {
 
     @Test
-    func `description includes pool name and connection counts`() {
+    func descriptionIncludesPoolNameAndConnectionCounts() {
         let connectionInfo = PoolInfo.ConnectionInfo(
             id: 1,
             name: "test - CONN:1",
@@ -38,7 +38,7 @@ struct PoolInfoTests {
     }
 
     @Test
-    func `description without connections omits connection details`() {
+    func descriptionWithoutConnectionsOmitsConnectionDetails() {
         let info = PoolInfo(
             name: "pool",
             openConnections: 0,
@@ -54,7 +54,7 @@ struct PoolInfoTests {
     }
 
     @Test
-    func `connectionInfo description format`() {
+    func connectionInfoDescriptionFormat() {
         let info = PoolInfo.ConnectionInfo(
             id: 42,
             name: "app - CONN:42",
@@ -74,7 +74,7 @@ struct PoolInfoTests {
     }
 
     @Test
-    func `connectionInfo without query omits query details`() {
+    func connectionInfoWithoutQueryOmitsQueryDetails() {
         let info = PoolInfo.ConnectionInfo(
             id: 1,
             name: "conn",

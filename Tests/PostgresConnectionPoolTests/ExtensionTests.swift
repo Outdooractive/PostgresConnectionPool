@@ -13,13 +13,13 @@ struct ExtensionTests {
     // MARK: - isNotEmpty
 
     @Test
-    func `Array isNotEmpty`() {
+    func arrayIsNotEmpty() {
         #expect([1].isNotEmpty)
         #expect([Int]().isNotEmpty == false)
     }
 
     @Test
-    func `Deque isNotEmpty`() {
+    func dequeIsNotEmpty() {
         var deque = Deque<Int>()
         #expect(deque.isNotEmpty == false)
         deque.append(1)
@@ -27,19 +27,19 @@ struct ExtensionTests {
     }
 
     @Test
-    func `Dictionary isNotEmpty`() {
+    func dictionaryIsNotEmpty() {
         #expect(["a": 1].isNotEmpty)
         #expect([:].isNotEmpty == false)
     }
 
     @Test
-    func `Set isNotEmpty`() {
+    func setIsNotEmpty() {
         #expect(Set([1]).isNotEmpty)
         #expect(Set<Int>().isNotEmpty == false)
     }
 
     @Test
-    func `String isNotEmpty`() {
+    func stringIsNotEmpty() {
         #expect("a".isNotEmpty)
         #expect("".isNotEmpty == false)
     }
@@ -47,39 +47,39 @@ struct ExtensionTests {
     // MARK: - atLeast (Double)
 
     @Test
-    func `Double atLeast clamps below minimum`() {
+    func doubleAtLeastClampsBelowMinimum() {
         #expect(0.5.atLeast(1.0) == 1.0)
     }
 
     @Test
-    func `Double atLeast passes through above minimum`() {
+    func doubleAtLeastPassesThroughAboveMinimum() {
         #expect(2.0.atLeast(1.0) == 2.0)
     }
 
     @Test
-    func `Double atLeast equality`() {
+    func doubleAtLeastEquality() {
         #expect(1.0.atLeast(1.0) == 1.0)
     }
 
     // MARK: - atLeast (Int)
 
     @Test
-    func `Int atLeast clamps below minimum`() {
+    func intAtLeastClampsBelowMinimum() {
         #expect(0.atLeast(1) == 1)
     }
 
     @Test
-    func `Int atLeast passes through above minimum`() {
+    func intAtLeastPassesThroughAboveMinimum() {
         #expect(5.atLeast(1) == 5)
     }
 
     @Test
-    func `Int atLeast equality`() {
+    func intAtLeastEquality() {
         #expect(1.atLeast(1) == 1)
     }
 
     @Test
-    func `Int atLeast negative values`() {
+    func intAtLeastNegativeValues() {
         #expect((-5).atLeast(-10) == -5)
         #expect((-15).atLeast(-10) == -10)
     }
@@ -87,23 +87,23 @@ struct ExtensionTests {
     // MARK: - FloatingPoint rounded(toPlaces:)
 
     @Test
-    func `Double rounded to places`() {
+    func doubleRoundedToPlaces() {
         #expect(1.23456.rounded(toPlaces: 2) == 1.23)
         #expect(1.23556.rounded(toPlaces: 2) == 1.24)
     }
 
     @Test
-    func `Double rounded to zero places`() {
+    func doubleRoundedToZeroPlaces() {
         #expect(1.5.rounded(toPlaces: 0) == 2.0)
     }
 
     @Test
-    func `Double rounded to many places`() {
+    func doubleRoundedToManyPlaces() {
         #expect(1.1.rounded(toPlaces: 10) == 1.1)
     }
 
     @Test
-    func `Double round mutating`() {
+    func doubleRoundMutating() {
         var value = 1.23456
         value.round(toPlaces: 2)
         #expect(value == 1.23)
@@ -112,22 +112,22 @@ struct ExtensionTests {
     // MARK: - String.matches()
 
     @Test
-    func `String matches simple pattern`() {
+    func stringMatchesSimplePattern() {
         #expect("hello world".matches("hello"))
     }
 
     @Test
-    func `String matches regex pattern`() {
+    func stringMatchesRegexPattern() {
         #expect("abc123".matches("[a-z]+\\d+"))
     }
 
     @Test
-    func `String no match returns false`() {
+    func stringNoMatchReturnsFalse() {
         #expect("abc".matches("\\d+") == false)
     }
 
     @Test
-    func `String matches case insensitive`() {
+    func stringMatchesCaseInsensitive() {
         #expect("Hello".matches("hello", caseInsensitive: true))
         #expect("Hello".matches("hello") == false)
     }
@@ -135,37 +135,37 @@ struct ExtensionTests {
     // MARK: - String.replacingPattern()
 
     @Test
-    func `String replacingPattern basic`() {
+    func stringReplacingPatternBasic() {
         let result = "hello 123 world".replacingPattern("\\d+", with: "NUM")
         #expect(result == "hello NUM world")
     }
 
     @Test
-    func `String replacingPattern no match`() {
+    func stringReplacingPatternNoMatch() {
         let result = "hello".replacingPattern("\\d+", with: "NUM")
         #expect(result == "hello")
     }
 
     @Test
-    func `String replacingPattern case insensitive`() {
+    func stringReplacingPatternCaseInsensitive() {
         let result = "Hello World".replacingPattern("hello", with: "Hi", caseInsensitive: true)
         #expect(result == "Hi World")
     }
 
     @Test
-    func `String replacingPattern invalid regex returns self`() {
+    func stringReplacingPatternInvalidRegexReturnsSelf() {
         let result = "hello".replacingPattern("[invalid", with: "")
         #expect(result == "hello")
     }
 
     @Test
-    func `String replacingPattern treat as one line`() {
+    func stringReplacingPatternTreatAsOneLine() {
         #expect("a\nb".replacingPattern("a.b", with: "X", treatAsOneLine: true) == "X")
         #expect("a\nb".replacingPattern("a.b", with: "X") == "a\nb")
     }
 
     @Test
-    func `String replacingPattern handles non-BMP characters`() {
+    func stringReplacingPatternHandlesNonBmpCharacters() {
         #expect("a👍🏽b".replacingPattern("👍🏽", with: "X") == "aXb")
         #expect("a👍🏽b".replacingPattern("b", with: "Y") == "a👍🏽Y")
         #expect("e\u{301}clair".replacingPattern("e\u{301}", with: "E") == "Eclair")
