@@ -695,6 +695,13 @@ public actor PostgresConnectionPool {
                 return
             }
 
+            guard isShutdown == false else {
+                poolConnection.state = .closed
+                try? await connection.close()
+                logger.debug("[\(poolName)] Discarding connection \(poolConnection.id) opened during shutdown")
+                return
+            }
+
             poolConnection.connection = connection
             poolConnection.state = .available
             nextConnectionAttempt = .distantPast
