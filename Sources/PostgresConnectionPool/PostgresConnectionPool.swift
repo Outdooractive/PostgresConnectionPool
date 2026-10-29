@@ -88,7 +88,7 @@ public actor PostgresConnectionPool {
         logger: Logger? = nil,
         maintenanceInterval: TimeInterval = 5.0,
         idleConnectionsCheckInterval: TimeInterval = 60.0,
-        eventLoopGroup: (any EventLoopGroup)? = nil,
+        eventLoopGroup: (any EventLoopGroup)? = nil
     ) {
         self.logger = logger ?? {
             var logger = Logger(label: configuration.applicationName)
@@ -145,7 +145,7 @@ public actor PostgresConnectionPool {
     @discardableResult
     public func connection<T>(
         batchId: Int? = nil,
-        _ callback: @Sendable (PostgresConnectionWrapper) async throws -> T,
+        _ callback: @Sendable (PostgresConnectionWrapper) async throws -> T
     ) async throws -> T {
         let poolConnection: PoolConnection
 
@@ -187,7 +187,7 @@ public actor PostgresConnectionPool {
 
     /// Adds a connection placeholder to the list of waiting connections.
     private func getConnection(
-        batchId: Int? = nil,
+        batchId: Int? = nil
     ) async throws -> PoolConnection {
         guard isShutdown == false else { throw PoolError.poolDestroyed(shutdownError) }
         guard Date() >= nextConnectionAttempt || available.isNotEmpty else {
@@ -571,6 +571,23 @@ public actor PostgresConnectionPool {
         // 3. Check that the Postgres connection is usable, or try to open a new one
         //    (see 2.)
         guard let connection = poolConnection.connection else {
+            poolConnection.state = .closed
+            connections.removeAll(where: { $0 === poolConnection })
+
+            if connections.count < poolSize {
+                Task { [weak self] in
+                    await self?.openConnection()
+                }
+            }
+            return
+        }
+
+        // A backend that was terminated while idle leaves a PoolConnection in
+        // `available` whose TCP channel is already closed. PostgresNIO's
+        // `query` writes to the closed channel and waits for a reply that never
+        // arrives, so reject it before leasing or running a health check.
+        guard !connection.isClosed else {
+            logger.debug("[\(poolName)] Dropping closed idle connection \(poolConnection.id)")
             poolConnection.state = .closed
             connections.removeAll(where: { $0 === poolConnection })
 
