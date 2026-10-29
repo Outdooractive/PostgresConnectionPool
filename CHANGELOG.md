@@ -5,6 +5,15 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to semantic versioning.
 
+## Unreleased
+
+### Fixed
+
+- Reject idle pooled connections whose TCP channel is already closed before
+  leasing them. PostgresNIO writes to a closed channel and waits for a response
+  that never arrives, which could hang the request after an administrative
+  backend termination.
+
 ## 1.1.1 - 2026-10-28
 
 ### Fixed

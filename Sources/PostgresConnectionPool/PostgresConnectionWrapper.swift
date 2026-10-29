@@ -26,7 +26,7 @@ public final class PostgresConnectionWrapper: Sendable {
 
     static func distribute<T>(
         poolConnection: PoolConnection?,
-        callback: (PostgresConnectionWrapper) async throws -> T,
+        callback: (PostgresConnectionWrapper) async throws -> T
     ) async throws -> T {
         guard let poolConnection,
               let connectionWrapper = PostgresConnectionWrapper(poolConnection)
@@ -108,9 +108,11 @@ public final class PostgresConnectionWrapper: Sendable {
         _ query: PostgresQuery,
         logger: Logger,
         file: String = #fileID,
-        line: Int = #line,
+        line: Int = #line
     ) async throws -> PostgresRowSequence {
-        guard isValid else { throw PoolError.connectionFailed }
+        guard isValid, !postgresConnection.isClosed else {
+            throw PoolError.connectionFailed
+        }
 
         poolConnection.query = query.sql
         return try await postgresConnection.query(query, logger: logger, file: file, line: line)
@@ -127,7 +129,7 @@ public final class PostgresConnectionWrapper: Sendable {
     public func sql(
         encodingContext: PostgresEncodingContext<some PostgresJSONEncoder> = .default,
         decodingContext: PostgresDecodingContext<some PostgresJSONDecoder> = .default,
-        queryLogLevel: Logger.Level? = .debug,
+        queryLogLevel: Logger.Level? = .debug
     ) -> some SQLDatabase {
         precondition(isValid, "PostgresConnectionWrapper used after its connection callback returned")
 
@@ -147,7 +149,7 @@ public final class PostgresConnectionWrapper: Sendable {
     @discardableResult
     public func addListener(
         channel: String,
-        handler notificationHandler: @Sendable @escaping (PostgresListenContext, PostgresMessage.NotificationResponse) -> Void,
+        handler notificationHandler: @Sendable @escaping (PostgresListenContext, PostgresMessage.NotificationResponse) -> Void
     ) -> PostgresListenContext {
         precondition(isValid, "PostgresConnectionWrapper used after its connection callback returned")
 
@@ -162,7 +164,7 @@ public final class PostgresConnectionWrapper: Sendable {
     /// - Parameter channel: The channel name to listen on.
     /// - Returns: An async sequence of `PostgresMessage.NotificationResponse` events.
     public func listen(
-        _ channel: String,
+        _ channel: String
     ) async throws -> PostgresNotificationSequence {
         guard isValid else { throw PoolError.connectionFailed }
 
@@ -181,7 +183,7 @@ public final class PostgresConnectionWrapper: Sendable {
     @discardableResult
     public func listen<Value>(
         on channel: String,
-        consume: (PostgresNotificationSequence) async throws -> Value,
+        consume: (PostgresNotificationSequence) async throws -> Value
     ) async throws -> Value {
         guard isValid else { throw PoolError.connectionFailed }
 

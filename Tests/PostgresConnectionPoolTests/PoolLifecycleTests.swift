@@ -96,7 +96,7 @@ struct PoolLifecycleTests {
     private func waitForWaitingRequests(
         _ pool: PostgresConnectionPool,
         count: Int,
-        timeout: Duration = .seconds(5),
+        timeout: Duration = .seconds(5)
     ) async throws {
         let clock = ContinuousClock()
         let deadline = clock.now + timeout
@@ -866,6 +866,49 @@ struct PoolLifecycleTests {
         try await Task.sleep(for: .milliseconds(300))
 
         await pool.shutdown()
+    }
+
+    private func scalarInt(
+        _ pool: PostgresConnectionPool,
+        _ sql: String
+    ) async throws -> Int? {
+        try await pool.connection { connection in
+            let rows = try await connection.query(
+                PostgresQuery(stringLiteral: sql),
+                logger: self.logger)
+
+            for try await row in rows {
+                return row.makeRandomAccess()[data: "value"].int
+            }
+            return nil
+        }
+    }
+
+    @Test(.timeLimit(.minutes(1)))
+    func terminatedIdleBackendIsReplaced() async throws {
+        let configuration = PostgresHelpers.poolConfiguration(
+            poolSize: 1,
+            maxIdleConnections: nil)
+        let pool = PostgresConnectionPool(configuration: configuration, logger: logger)
+        let admin = PostgresConnectionPool(configuration: configuration, logger: logger)
+
+        let pid = try #require(
+            try await scalarInt(pool, "SELECT pg_backend_pid() AS value")
+        )
+
+        _ = try await admin.connection { connection in
+            _ = try await connection.query(
+                PostgresQuery(stringLiteral: "SELECT pg_terminate_backend(\(pid))"),
+                logger: self.logger)
+        }
+
+        try await Task.sleep(for: .milliseconds(100))
+
+        let value = try await scalarInt(pool, "SELECT 1 AS value")
+        #expect(value == 1)
+
+        await pool.shutdown()
+        await admin.shutdown()
     }
 
 }
